@@ -15,6 +15,16 @@
 
 本机打开启动脚本显示的网址。组员在同一网络中使用“组内访问”地址注册并登录。共享平台部署见 [团队共享平台部署](docs/团队共享平台部署.md)。
 
+### 通过 Tailscale 私有网络共享
+
+不要让组员直接访问公网 IP。先让主机和组员加入同一个 Tailscale 私有网络，再启动：
+
+```powershell
+pwsh -File .\scripts\start_team_private.ps1
+```
+
+脚本会读取当前主机的 Tailscale IPv4 地址，并只在该地址上监听平台端口。组员只能通过 Tailscale 网络访问，不能从普通公网直接连接。组员首次注册仍需团队邀请码。
+
 如果本机已有 Python 环境，也可以直接运行：
 
 ```powershell

@@ -1,4 +1,5 @@
 const $ = (id) => document.getElementById(id);
+const customSelects = new Map();
 
 const state = {
   user: null,
@@ -14,6 +15,132 @@ const state = {
   activeAcquisitionId: null,
   acquisitionPollTimer: null,
 };
+
+function closeAllCustomSelects(except = null) {
+  customSelects.forEach((control, selectId) => {
+    if (selectId !== except) {
+      control.wrapper.classList.remove("open");
+      control.menu.classList.add("hidden");
+      control.trigger.setAttribute("aria-expanded", "false");
+    }
+  });
+}
+
+function refreshCustomSelect(selectOrId) {
+  const select = typeof selectOrId === "string" ? $(selectOrId) : selectOrId;
+  const control = select ? customSelects.get(select.id) : null;
+  if (!control) return;
+  const { wrapper, trigger, value, menu } = control;
+  const selected = select.selectedOptions[0];
+  value.textContent = selected?.textContent || "请选择";
+  trigger.disabled = select.disabled;
+  wrapper.classList.toggle("disabled", select.disabled);
+  menu.innerHTML = Array.from(select.options).map((option, index) => `
+    <button class="custom-option ${option.selected ? "selected" : ""}" type="button" role="option"
+      aria-selected="${option.selected}" data-value="${escapeHtml(option.value)}" ${option.disabled ? "disabled" : ""}>
+      <span class="custom-option-index">${String(index + 1).padStart(2, "0")}</span>
+      <span class="custom-option-label">${escapeHtml(option.textContent)}</span>
+      <span class="custom-option-check">${option.selected ? "✓" : ""}</span>
+    </button>`).join("");
+  menu.querySelectorAll(".custom-option").forEach((optionButton) => {
+    optionButton.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      select.value = optionButton.dataset.value;
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+      refreshCustomSelect(select);
+      control.wrapper.classList.remove("open");
+      control.menu.classList.add("hidden");
+      control.trigger.setAttribute("aria-expanded", "false");
+      control.trigger.focus();
+    });
+  });
+}
+
+function initializeCustomSelects() {
+  document.querySelectorAll("select[data-custom-select]").forEach((select, selectIndex) => {
+    if (customSelects.has(select.id)) return;
+    const wrapper = document.createElement("div");
+    wrapper.className = "custom-select";
+    wrapper.dataset.selectId = select.id;
+    const trigger = document.createElement("button");
+    trigger.type = "button";
+    trigger.className = "custom-select-trigger";
+    trigger.setAttribute("role", "combobox");
+    trigger.setAttribute("aria-haspopup", "listbox");
+    trigger.setAttribute("aria-expanded", "false");
+    trigger.setAttribute("aria-controls", `${select.id}Menu`);
+    const fieldLabel = select.closest("label")?.querySelector(".field-label")?.childNodes[0]?.textContent?.trim();
+    trigger.setAttribute("aria-label", fieldLabel || select.id);
+    trigger.innerHTML = `
+      <span class="custom-select-leading">${escapeHtml(select.dataset.selectCode || String(selectIndex + 1).padStart(2, "0"))}</span>
+      <span class="custom-select-value"></span>
+      <i class="custom-select-chevron" aria-hidden="true"></i>`;
+    const menu = document.createElement("div");
+    menu.id = `${select.id}Menu`;
+    menu.className = "custom-select-menu hidden";
+    menu.setAttribute("role", "listbox");
+    wrapper.append(trigger, menu);
+    select.insertAdjacentElement("afterend", wrapper);
+    select.tabIndex = -1;
+    select.setAttribute("aria-hidden", "true");
+
+    const control = { select, wrapper, trigger, menu, value: trigger.querySelector(".custom-select-value") };
+    customSelects.set(select.id, control);
+
+    const open = () => {
+      if (trigger.disabled) return;
+      closeAllCustomSelects(select.id);
+      wrapper.classList.add("open");
+      menu.classList.remove("hidden");
+      trigger.setAttribute("aria-expanded", "true");
+      const selectedOption = menu.querySelector(".custom-option.selected") || menu.querySelector(".custom-option");
+      selectedOption?.focus();
+    };
+    const close = () => {
+      wrapper.classList.remove("open");
+      menu.classList.add("hidden");
+      trigger.setAttribute("aria-expanded", "false");
+    };
+    trigger.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (wrapper.classList.contains("open")) close();
+      else open();
+    });
+    trigger.addEventListener("keydown", (event) => {
+      if (["ArrowDown", "ArrowUp", "Enter", " "].includes(event.key)) {
+        event.preventDefault();
+        open();
+      } else if (event.key === "Escape") {
+        close();
+      }
+    });
+    menu.addEventListener("keydown", (event) => {
+      const options = [...menu.querySelectorAll(".custom-option:not(:disabled)")];
+      const current = document.activeElement;
+      const index = options.indexOf(current);
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        options[Math.min(options.length - 1, index + 1)]?.focus();
+      } else if (event.key === "ArrowUp") {
+        event.preventDefault();
+        options[Math.max(0, index - 1)]?.focus();
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        close();
+        trigger.focus();
+      } else if (event.key === "Tab") {
+        close();
+      }
+    });
+    refreshCustomSelect(select);
+  });
+}
+
+document.addEventListener("pointerdown", (event) => {
+  if (!event.target.closest(".custom-select")) closeAllCustomSelects();
+});
 
 function runBootSequence() {
   const overlay = $("bootOverlay");
@@ -667,6 +794,7 @@ function populateTrustJobs() {
     state.trustJobId = jobs[0]?.id || null;
   }
   if (state.trustJobId) select.value = state.trustJobId;
+  refreshCustomSelect(select);
 }
 
 function downloadObjectFile(filename, payload) {
@@ -896,6 +1024,7 @@ function renderScanResults(data) {
       if (label.includes("muse s")) $("deviceProfile").value = "muse_s";
       else if (label.includes("muse")) $("deviceProfile").value = "muse2";
       else if (label.includes("cyton") || label.includes("openbci")) $("deviceProfile").value = "cyton";
+      refreshCustomSelect($("deviceProfile"));
       renderDeviceProfile();
     });
   });
@@ -915,6 +1044,7 @@ async function loadDeviceProfiles() {
       `<option value="${escapeHtml(profile.id)}">${escapeHtml(profile.label)} · ${escapeHtml(profile.transport)}${profile.id === "synthetic" ? " · 仅测试" : ""}</option>`
     ).join("");
     if (state.deviceProfiles.some((profile) => profile.id === previous)) select.value = previous;
+    refreshCustomSelect(select);
     renderDeviceProfile();
   } catch (error) {
     $("deviceProfileInfo").innerHTML = `<span>${escapeHtml(error.message)}</span>`;
@@ -1470,6 +1600,7 @@ $("jobDialog").addEventListener("click", (event) => {
 });
 
 async function boot() {
+  initializeCustomSelects();
   resetValidationPanel();
   state.autoSync = readAutoSyncPreference();
   applyAutoSync(state.autoSync);

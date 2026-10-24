@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>NeuroTeam · 可穿戴脑电协作平台</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230d2438'/%3E%3Cpath d='M4 17h5l3-8 4 14 4-10 3 4h5' fill='none' stroke='%238dc5fa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="/assets/styles.css?v=20261025-7">
+  <link rel="stylesheet" href="/assets/styles.css?v=20261025-8">
 </head>
 <body>
   <div class="boot-overlay" id="bootOverlay" aria-hidden="true">
@@ -304,7 +304,7 @@
                   </label>
                   <label class="field">
                     <span class="field-label">处理模式 <small>正式实验或快速检查</small></span>
-                    <select id="backend">
+                    <select id="backend" data-custom-select data-select-code="MODE">
                       <option value="research">正式科研 · MNE + SciPy</option>
                       <option value="baseline">快速预览 · 基础处理</option>
                     </select>
@@ -411,7 +411,7 @@
               <div class="acquisition-grid">
                 <label class="field">
                   <span class="field-label">设备类型 <small>按实际硬件选择</small></span>
-                  <select id="deviceProfile">
+                  <select id="deviceProfile" data-custom-select data-select-code="DEV">
                     <option value="">请选择设备类型</option>
                   </select>
                 </label>
@@ -425,7 +425,7 @@
                 </label>
                 <label class="field">
                   <span class="field-label">状态标签 <small>写入文件名和训练标签</small></span>
-                  <select id="acquisitionTask">
+                  <select id="acquisitionTask" data-custom-select data-select-code="TASK">
                     <option value="rest">静息基线</option>
                     <option value="focused">专注</option>
                     <option value="relaxed">放松</option>
@@ -593,13 +593,13 @@
     <div class="dialog-content">
       <div class="trust-toolbar">
         <label for="trustJobSelect">选择已完成任务</label>
-        <select id="trustJobSelect"></select>
+        <select id="trustJobSelect" data-custom-select data-select-code="JOB"></select>
         <span id="trustModeBadge">来源记录</span>
       </div>
       <div id="trustContent" class="trust-content"></div>
     </div>
   </dialog>
 
-  <script src="/assets/app.js?v=20261025-7"></script>
+  <script src="/assets/app.js?v=20261025-8"></script>
 </body>
 </html>

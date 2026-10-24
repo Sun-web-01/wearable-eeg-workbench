@@ -1,6 +1,6 @@
 # 可穿戴 EEG/IMU 数据质量工作台
 
-这是大创项目成员 A 的可运行工作台，用于 EEG/IMU 数据验收、基础预处理、运动伪迹筛查、窗口特征提取和报告导出。仓库同时包含可供全组共享的账号、任务队列、日志和报告平台。
+这是我在大创项目中负责的数据与信号工作台，用于 EEG/IMU 数据验收、基础预处理、运动伪迹筛查、窗口特征提取和报告导出。仓库同时包含可供全组共享的账号、任务队列、日志和报告平台。
 
 当前结果适合流程联调和数据质量审查，不是论文最终算法。正式实验需安装研究依赖并使用 MNE/SciPy 的正式滤波、ICA 与抗混叠重采样。
 
@@ -69,7 +69,7 @@ data/datasets.json         数据集登记与许可状态
 data/raw/                  原始数据，默认不提交 Git
 data/processed/            处理中间数据
 reports/demo/              已生成的演示报告
-docs/成员A执行手册.md      分工、月度任务、平台边界
+docs/数据与信号执行手册.md  我的工作安排、协作方式和交付标准
 docs/数据与实验规范.md     格式、泄露检查与匿名化
 ```
 
@@ -107,6 +107,6 @@ python -m unittest discover -s tests -v
 
 研究依赖加入 SciPy、MNE、Matplotlib 和 scikit-learn。正式科研运行使用 `--backend research`，报告会记录 Python、NumPy、Pandas、SciPy 和 MNE 版本。论文结果还必须记录数据哈希、参数和随机种子，不能只保留最终截图。
 
-## 平台边界
+## 团队协作与交付接口
 
-完整团队产品由成员 C/D 搭建。成员 A 的交付接口是 `process_dataframe()` 的 JSON 结果、`features.csv`、`processed.csv` 和标准化质量报告；实时设备接入后续通过 BrainFlow + LSL 增加。
+完整团队产品由系统方向同学牵头，我提供数据接口，并与模型方向同学共同完成联调。我的主要交付物是 `process_dataframe()` 的 JSON 结果、`features.csv`、`processed.csv` 和标准化质量报告；实时设备接入后续通过 BrainFlow + LSL 共同完善。

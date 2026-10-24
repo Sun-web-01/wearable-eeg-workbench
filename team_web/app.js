@@ -8,6 +8,8 @@ const state = {
   pollTimer: null,
   autoSync: true,
   validationToken: 0,
+  trustMode: "trace",
+  trustJobId: null,
 };
 
 function runBootSequence() {
@@ -298,6 +300,11 @@ function formatSeconds(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) return "—";
   return number < 1 ? `${(number * 1000).toFixed(1)} ms` : `${number.toFixed(2)} s`;
+}
+
+function scoreNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number.toFixed(1) : "—";
 }
 
 function qualityDescription(grade) {
@@ -631,6 +638,182 @@ async function loadDatasets() {
   }
 }
 
+const trustModeLabels = {
+  trace: ["可追溯", "来源记录"],
+  review: ["可复核", "质量复核"],
+  reproduce: ["可复现", "复现清单"],
+};
+
+function completedJobs() {
+  return state.jobs.filter((job) => job.status === "completed");
+}
+
+function populateTrustJobs() {
+  const jobs = completedJobs();
+  const select = $("trustJobSelect");
+  select.innerHTML = jobs.length
+    ? jobs.map((job) => `<option value="${escapeHtml(job.id)}">${escapeHtml(job.title)} · ${formatTime(job.created_at)}</option>`).join("")
+    : "<option>暂无已完成任务</option>";
+  select.disabled = jobs.length === 0;
+  if (!jobs.some((job) => job.id === state.trustJobId)) {
+    state.trustJobId = jobs[0]?.id || null;
+  }
+  if (state.trustJobId) select.value = state.trustJobId;
+}
+
+function downloadObjectFile(filename, payload) {
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function openTrustDialog(mode) {
+  state.trustMode = mode;
+  const [title, badge] = trustModeLabels[mode];
+  $("trustTitle").textContent = title;
+  $("trustModeBadge").textContent = badge;
+  populateTrustJobs();
+  $("trustDialog").showModal();
+  await loadTrustView();
+}
+
+async function loadTrustView() {
+  const content = $("trustContent");
+  if (!state.trustJobId) {
+    content.innerHTML = '<div class="trust-empty">还没有已完成任务。运行一个演示任务或上传数据后，这里会提供追溯、复核和复现信息。</div>';
+    return;
+  }
+  content.innerHTML = '<div class="trust-empty">正在读取报告与运行信息…</div>';
+  try {
+    const jobResponse = await api(`/api/jobs/${state.trustJobId}`);
+    const job = jobResponse.job;
+    let report = null;
+    try {
+      report = await api(`/api/jobs/${job.id}/report`);
+    } catch {
+      report = null;
+    }
+    const origin = report?.data_origin || {};
+    const config = job.config || {};
+    const overall = report?.quality?.overall || {};
+    const channels = report?.quality?.channels || [];
+    const environment = report?.environment || {};
+    const manifest = {
+      schema_version: "1.0",
+      task: {
+        id: job.id,
+        title: job.title,
+        owner_name: job.owner_name,
+        status: job.status,
+        created_at: job.created_at,
+        started_at: job.started_at,
+        finished_at: job.finished_at,
+        input_name: job.input_name,
+        input_sha256: job.input_sha256,
+        mode: job.mode,
+      },
+      data_origin: origin,
+      config,
+      environment,
+      quality: overall,
+      method_notes: report?.method_notes || [],
+      outputs: ["report.html", "report.json", "features.csv", "processed.csv"],
+    };
+    const traceActions = `
+      <div class="trust-actions">
+        <button class="accent" type="button" data-trust-action="download">下载追溯清单 JSON</button>
+        <button type="button" data-trust-action="detail">打开任务详情</button>
+      </div>`;
+    const reviewActions = `
+      <div class="trust-actions">
+        <a class="accent" href="/api/jobs/${job.id}/view" target="_blank" rel="noreferrer">打开完整质量报告</a>
+        <button type="button" data-trust-action="detail">查看任务详情</button>
+      </div>`;
+    const reproduceActions = `
+      <div class="trust-actions">
+        <button class="accent" type="button" data-trust-action="download">下载复现清单 JSON</button>
+        <button type="button" data-trust-action="detail">查看处理参数</button>
+      </div>`;
+
+    if (state.trustMode === "trace") {
+      content.innerHTML = `
+        <div class="trust-intro"><strong>可追溯：确认这份结果从哪里来</strong>记录输入文件、文件指纹、提交者、处理时间和生成参数。只要文件指纹或参数变化，就不应当作同一次实验。</div>
+        <div class="trust-grid">
+          <section class="trust-card"><h3>任务与来源</h3><dl class="trust-list">
+            <div><dt>任务名称</dt><dd>${escapeHtml(job.title)}</dd></div>
+            <div><dt>任务编号</dt><dd>${escapeHtml(job.id)}</dd></div>
+            <div><dt>提交者</dt><dd>${escapeHtml(job.owner_name)}</dd></div>
+            <div><dt>数据来源</dt><dd>${escapeHtml(origin.label || (job.mode === "demo" ? "系统合成演示数据" : "用户上传文件"))}</dd></div>
+            <div><dt>说明</dt><dd>${escapeHtml(origin.summary || "本报告仅对应本次任务输入。")}</dd></div>
+          </dl></section>
+          <section class="trust-card"><h3>文件与时间</h3><dl class="trust-list">
+            <div><dt>输入文件</dt><dd>${escapeHtml(job.input_name || "系统生成数据")}</dd></div>
+            <div><dt>创建时间</dt><dd>${formatDateTime(job.created_at)}</dd></div>
+            <div><dt>完成时间</dt><dd>${formatDateTime(job.finished_at)}</dd></div>
+            <div><dt>SHA-256</dt><dd class="trust-hash">${escapeHtml(job.input_sha256 || "演示任务未使用外部文件")}</dd></div>
+          </dl></section>
+        </div>
+        ${traceActions}`;
+    } else if (state.trustMode === "review") {
+      const issueItems = (overall.issues || []).map((issue) => `<li>${escapeHtml(issue)}</li>`).join("") || "<li>未报告明显全段问题。</li>";
+      const channelRows = channels.map((channel) => `
+        <tr><td>${escapeHtml(channel.channel)}</td><td>${formatRatio(channel.valid_ratio)}</td><td>${formatRatio(channel.flat_ratio)}</td><td>${formatRatio(channel.high_frequency_ratio)}</td><td><span class="badge ${escapeHtml(channel.grade || "")}">${escapeHtml(channel.grade || "—")}</span></td></tr>
+      `).join("");
+      content.innerHTML = `
+        <div class="trust-intro"><strong>可复核：确认数据是否值得进入模型</strong>先看质量等级和问题说明，再检查各通道的有效比例、平直段和高频噪声。质量分不是模型准确率。</div>
+        <div class="trust-grid">
+          <section class="trust-card"><h3>质量结论</h3><dl class="trust-list">
+            <div><dt>质量等级</dt><dd>${escapeHtml(overall.grade || job.quality_grade || "—")} · ${escapeHtml(qualityLabel(overall.grade || job.quality_grade))}</dd></div>
+            <div><dt>质量分数</dt><dd>${scoreNumber(overall.score ?? job.quality_score)} / 100</dd></div>
+            <div><dt>人工复核</dt><dd>${overall.manual_review_required ? "建议复核" : "未强制要求，仍建议抽查"}</dd></div>
+            <div><dt>运动伪迹</dt><dd>${formatRatio(overall.motion_artifact_ratio)}</dd></div>
+          </dl><ul class="issue-list">${issueItems}</ul></section>
+          <section class="trust-card"><h3>通道检查</h3>${channels.length ? `<div class="table-wrap"><table class="trust-channel-table"><thead><tr><th>通道</th><th>有效</th><th>平直</th><th>高频</th><th>等级</th></tr></thead><tbody>${channelRows}</tbody></table></div>` : "<p class=\"trust-review-note\">当前报告没有逐通道明细。</p>"}<p class="trust-review-note">复核建议：查看原始波形、确认电极接触和运动片段，再决定是否重采或调整参数。</p></section>
+        </div>
+        ${reviewActions}`;
+    } else {
+      const configRows = [
+        ["处理模式", backendLabel(job.backend)],
+        ["目标采样率", `${config.target_rate_hz ?? "—"} Hz`],
+        ["带通范围", `${config.low_hz ?? "—"}–${config.high_hz ?? "—"} Hz`],
+        ["工频陷波", config.notch_hz ? `${config.notch_hz} Hz` : "关闭"],
+        ["运动阈值", `${config.motion_threshold_g ?? "—"} g`],
+        ["窗口 / 步长", `${config.window_sec ?? "—"} 秒 / ${config.step_sec ?? "—"} 秒`],
+      ];
+      const envRows = Object.entries(environment).map(([key, value]) => `<div><dt>${escapeHtml(key)}</dt><dd>${escapeHtml(value ?? "—")}</dd></div>`).join("");
+      content.innerHTML = `
+        <div class="trust-intro"><strong>可复现：用同一输入和参数得到同一处理流程</strong>这里汇总数据指纹、处理参数和软件版本。下载清单后，应与报告文件一起保存。</div>
+        <div class="trust-grid">
+          <section class="trust-card"><h3>处理参数</h3><dl class="trust-list">${configRows.map(([label, value]) => `<div><dt>${label}</dt><dd>${escapeHtml(value)}</dd></div>`).join("")}</dl></section>
+          <section class="trust-card"><h3>软件环境</h3><dl class="trust-list">${envRows || "<div><dt>环境版本</dt><dd>报告中尚未记录</dd></div>"}</dl></section>
+        </div>
+        <section class="trust-card" style="margin-top:9px"><h3>方法说明</h3><ul class="issue-list">${(report?.method_notes || ["尚未生成方法说明。"]).map((note) => `<li>${escapeHtml(note)}</li>`).join("")}</ul></section>
+        ${reproduceActions}`;
+    }
+
+    content.querySelectorAll('[data-trust-action="download"]').forEach((button) => {
+      button.addEventListener("click", () => {
+        const suffix = state.trustMode === "trace" ? "追溯清单" : "复现清单";
+        downloadObjectFile(downloadFileName(job, suffix, "json"), manifest);
+      });
+    });
+    content.querySelectorAll('[data-trust-action="detail"]').forEach((button) => {
+      button.addEventListener("click", () => {
+        $("trustDialog").close();
+        void openJob(job.id);
+      });
+    });
+  } catch (error) {
+    content.innerHTML = `<div class="auth-error">${escapeHtml(error.message)}</div>`;
+  }
+}
+
 function setView(view) {
   document.querySelectorAll(".view").forEach((element) => element.classList.add("hidden"));
   document.querySelectorAll(".nav-item").forEach((button) => {
@@ -656,6 +839,20 @@ document.querySelectorAll("[data-auth-tab]").forEach((button) => {
 
 document.querySelectorAll(".nav-item").forEach((button) => {
   button.addEventListener("click", () => setView(button.dataset.view));
+});
+
+document.querySelectorAll("[data-trust-view]").forEach((button) => {
+  button.addEventListener("click", () => void openTrustDialog(button.dataset.trustView));
+});
+
+$("trustJobSelect").addEventListener("change", () => {
+  state.trustJobId = $("trustJobSelect").value || null;
+  void loadTrustView();
+});
+
+$("closeTrustDialog").addEventListener("click", () => $("trustDialog").close());
+$("trustDialog").addEventListener("click", (event) => {
+  if (event.target === $("trustDialog")) $("trustDialog").close();
 });
 
 $("authForm").addEventListener("submit", async (event) => {

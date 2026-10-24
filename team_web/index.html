@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>NeuroTeam · 可穿戴脑电协作平台</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230d2438'/%3E%3Cpath d='M4 17h5l3-8 4 14 4-10 3 4h5' fill='none' stroke='%238dc5fa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="/assets/styles.css?v=20261024-8">
+  <link rel="stylesheet" href="/assets/styles.css?v=20261025-1">
 </head>
 <body>
   <div class="boot-overlay" id="bootOverlay" aria-hidden="true">
@@ -195,8 +195,10 @@
             <strong>先看信号，再谈识别</strong>
             <p>平台的当前重点是把来源、时间轴、噪声和运动伪迹说清楚，让模型拿到可靠、可复现的数据。</p>
           </div>
-          <div class="quality-tags" aria-label="数据处理原则">
-            <span>可追溯</span><span>可复核</span><span>可复现</span>
+          <div class="quality-tags" aria-label="数据交付保障">
+            <button type="button" data-trust-view="trace" title="查看数据来源、文件指纹和处理过程">可追溯</button>
+            <button type="button" data-trust-view="review" title="查看质量提示并打开完整报告">可复核</button>
+            <button type="button" data-trust-view="reproduce" title="查看参数、软件环境和复现清单">可复现</button>
           </div>
         </div>
 
@@ -468,6 +470,21 @@
     </form>
   </dialog>
 
-  <script src="/assets/app.js?v=20261024-8"></script>
+  <dialog id="trustDialog" class="trust-dialog">
+    <div class="dialog-head">
+      <div><span class="eyebrow">数据交付保障</span><h2 id="trustTitle">可追溯</h2></div>
+      <button class="icon-button" id="closeTrustDialog" aria-label="关闭数据交付保障">×</button>
+    </div>
+    <div class="dialog-content">
+      <div class="trust-toolbar">
+        <label for="trustJobSelect">选择已完成任务</label>
+        <select id="trustJobSelect"></select>
+        <span id="trustModeBadge">来源记录</span>
+      </div>
+      <div id="trustContent" class="trust-content"></div>
+    </div>
+  </dialog>
+
+  <script src="/assets/app.js?v=20261025-1"></script>
 </body>
 </html>

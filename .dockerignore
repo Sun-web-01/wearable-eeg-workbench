@@ -1,0 +1,13 @@
+.git
+.venv
+__pycache__
+*.pyc
+team_data
+data/raw
+data/processed
+reports
+tests
+web
+docs
+*.docx
+

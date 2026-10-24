@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EEG/IMU Data Lab</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">A</div>
+      <div>
+        <h1>EEG/IMU Data Lab</h1>
+        <p>可穿戴脑电数据验收、预处理与质量评估平台</p>
+      </div>
+    </div>
+    <div class="scope">Member A · Baseline + Research</div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div>
+        <span class="eyebrow">DATA QUALITY WORKBENCH</span>
+        <h2>先把数据做可信，再让模型做判断。</h2>
+        <p>上传 CSV，自动完成通道识别、滤波、重采样、时间轴检查、IMU 运动伪迹筛查、4 秒窗口特征提取和报告导出。数据仅在本机处理。</p>
+      </div>
+      <div class="hero-steps">
+        <span>01 数据验收</span><span>02 预处理</span><span>03 质量门控</span><span>04 特征交接</span>
+      </div>
+    </section>
+
+    <section class="workspace">
+      <div class="left-stack">
+        <article class="panel">
+          <div class="panel-heading">
+            <div><h3>1. 导入数据</h3><p>CSV 至少包含 EEG 列；建议同时包含 time_s 和三轴 acc 列。</p></div>
+          </div>
+          <label class="dropzone" id="dropzone">
+            <input type="file" id="fileInput" accept=".csv,text/csv">
+            <div class="upload-icon">↥</div>
+            <strong>拖入 CSV 或点击选择</strong>
+            <span>推荐列名：time_s, eeg_fpz, eeg_pz, acc_x_g, acc_y_g, acc_z_g</span>
+          </label>
+          <div class="file-meta" id="fileMeta">尚未选择文件</div>
+          <div class="button-row">
+            <button class="primary" id="processBtn" disabled>处理已选数据</button>
+            <button class="secondary" id="demoBtn">生成 90 秒演示数据</button>
+          </div>
+        </article>
+
+        <article class="panel">
+          <details open>
+            <summary><h3>2. 处理参数</h3><span>可保持默认</span></summary>
+            <div class="form-grid">
+              <label>处理后端<select id="backend"><option value="baseline">Baseline · 零依赖</option><option value="research">Research · SciPy + MNE</option></select></label>
+              <label>输入采样率（无时间列时必填）<input id="sampleRate" type="number" min="1" placeholder="例：128"></label>
+              <label>目标采样率 / Hz<input id="targetRate" type="number" min="1" value="128"></label>
+              <label>带通下限 / Hz<input id="lowHz" type="number" min="0" step="0.1" value="0.5"></label>
+              <label>带通上限 / Hz<input id="highHz" type="number" min="1" value="45"></label>
+              <label>工频陷波 / Hz<input id="notchHz" type="number" min="0" value="50"></label>
+              <label>IMU 运动阈值 / g<input id="motionThreshold" type="number" min="0" step="0.05" value="0.25"></label>
+            </div>
+          </details>
+        </article>
+      </div>
+
+      <aside class="panel guide">
+        <h3>当前平台边界</h3>
+        <p>这是成员 A 的离线数据工作台，适合数据验收、预处理联调和实验留痕，不是最终团队 Web 产品。</p>
+        <dl>
+          <dt>现在能做</dt><dd>CSV 接入、质量评分、运动门控、特征导出</dd>
+          <dt>正式实验</dt><dd>切换抗混叠重采样与零相位 FIR；ICA 需人工核查</dd>
+          <dt>下一步</dt><dd>BrainFlow + LSL 接实时 EEG/IMU 流</dd>
+          <dt>交接口</dt><dd>把 JSON、features.csv 和 processed.csv 交给成员 B/C/D</dd>
+        </dl>
+      </aside>
+    </section>
+
+    <div id="status" class="status hidden"></div>
+    <section id="results" class="results hidden">
+      <div class="metric-grid">
+        <article class="metric-card"><span>综合等级</span><strong id="qualityGrade">—</strong><small id="qualityScore"></small></article>
+        <article class="metric-card"><span>数据时长</span><strong id="duration">—</strong><small id="rows"></small></article>
+        <article class="metric-card"><span>运动伪迹</span><strong id="motionRatio">—</strong><small id="motionThresholdLabel"></small></article>
+        <article class="metric-card"><span>可用窗口</span><strong id="keptWindows">—</strong><small id="windowSummary"></small></article>
+      </div>
+
+      <div class="chart-grid">
+        <article class="panel chart-panel"><div class="panel-heading"><h3>EEG 波形预览</h3><span id="eegChartName"></span></div><canvas id="eegChart"></canvas></article>
+        <article class="panel chart-panel"><div class="panel-heading"><h3>IMU 幅值预览</h3><span>用于运动门控</span></div><canvas id="imuChart"></canvas></article>
+      </div>
+
+      <article class="panel">
+        <div class="panel-heading"><h3>质量结论</h3><button class="text-button" id="downloadHtml">下载 HTML 报告</button></div>
+        <div id="issues" class="issue-list"></div>
+        <div id="warnings" class="warning-list"></div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-heading"><h3>通道验收表</h3><span>分数用于相对比较，不是临床结论</span></div>
+        <div class="table-wrap"><table><thead><tr><th>通道</th><th>评分</th><th>等级</th><th>峰峰值</th><th>高频占比</th><th>平直占比</th></tr></thead><tbody id="channelBody"></tbody></table></div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-heading"><h3>特征交接预览</h3><span id="featureCount"></span></div>
+        <div class="table-wrap"><table><thead id="featureHead"></thead><tbody id="featureBody"></tbody></table></div>
+        <div class="button-row">
+          <button class="secondary" id="downloadJson">下载 report.json</button>
+          <button class="secondary" id="downloadFeatures">下载 features.csv</button>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <footer>Wearable EEG Workbench v0.1 · 数据默认不离开本机 · 正式科研结论需经导师审核与真实数据复核</footer>
+  <script src="/app.js"></script>
+</body>
+</html>
+

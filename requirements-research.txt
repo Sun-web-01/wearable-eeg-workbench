@@ -1,0 +1,6 @@
+-r requirements.txt
+scipy>=1.11
+mne>=1.6
+matplotlib>=3.8
+scikit-learn>=1.4
+

@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NeuroTeam · 可穿戴脑电协作平台</title>
+  <link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body>
+  <section class="auth-shell" id="authShell">
+    <div class="auth-visual">
+      <div class="auth-brand"><span>N</span> NeuroTeam Lab</div>
+      <div>
+        <div class="kicker">TEAM DATA INFRASTRUCTURE</div>
+        <h1>让每一条 EEG 数据<br>都能被团队复核。</h1>
+        <p>共享数据入口、统一预处理参数、可追溯任务日志和标准化报告。数据集中保存在服务端，而不是散落在每个人的电脑里。</p>
+      </div>
+      <div class="signal-art" aria-hidden="true">
+        <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+      </div>
+    </div>
+    <div class="auth-panel">
+      <div class="auth-card">
+        <div class="auth-tabs">
+          <button class="active" data-auth-tab="login">登录</button>
+          <button data-auth-tab="register">加入团队</button>
+        </div>
+        <form id="authForm">
+          <label>用户名<input id="username" autocomplete="username" minlength="3" maxlength="32" required></label>
+          <label>密码<input id="password" type="password" autocomplete="current-password" minlength="8" required></label>
+          <label class="register-only hidden">团队邀请码<input id="inviteCode" autocomplete="off"></label>
+          <div class="auth-error hidden" id="authError"></div>
+          <button class="primary wide" id="authSubmit" type="submit">登录平台</button>
+        </form>
+        <p class="auth-note">首次注册的成员将成为管理员。账号只用于团队内部协作。</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="app-shell hidden" id="appShell">
+    <aside class="sidebar">
+      <div class="side-brand"><span>N</span><div><strong>NeuroTeam</strong><small>Wearable EEG Lab</small></div></div>
+      <nav>
+        <button class="nav-item active" data-view="jobs"><span>任务台</span><small>Jobs</small></button>
+        <button class="nav-item" data-view="datasets"><span>数据资源</span><small>Datasets</small></button>
+        <button class="nav-item" data-view="protocol"><span>团队规范</span><small>Protocol</small></button>
+      </nav>
+      <div class="side-foot">
+        <div class="server-dot"></div>
+        <span>服务端已连接</span>
+        <small>数据保存在团队主机</small>
+      </div>
+    </aside>
+
+    <main class="app-main">
+      <header class="app-header">
+        <div>
+          <div class="breadcrumb">NEUROTEAM / <span id="viewLabel">任务台</span></div>
+          <h2 id="pageTitle">团队任务台</h2>
+        </div>
+        <div class="header-user">
+          <div class="avatar" id="avatar">R</div>
+          <div><strong id="currentUser">—</strong><small id="currentRole">成员</small></div>
+          <button class="ghost small" id="logoutBtn">退出</button>
+        </div>
+      </header>
+
+      <section class="view" id="jobsView">
+        <div class="stat-grid">
+          <article><span>全部任务</span><strong id="statTotal">0</strong><small>团队共享</small></article>
+          <article><span>已完成</span><strong id="statCompleted">0</strong><small>报告可交付</small></article>
+          <article><span>队列中</span><strong id="statProcessing">0</strong><small>等待/处理中</small></article>
+          <article><span>失败</span><strong id="statFailed">0</strong><small>需要检查</small></article>
+        </div>
+
+        <section class="content-grid">
+          <article class="panel upload-panel">
+            <div class="panel-title"><div><span class="kicker">NEW ANALYSIS</span><h3>提交数据任务</h3><p>CSV/EDF 上传后进入服务端处理队列，关闭浏览器不会中断任务。</p></div></div>
+            <form id="uploadForm">
+              <label>任务名称<input id="jobTitle" placeholder="例：Sleep-EDF SC4001 数据验收"></label>
+              <div class="dropzone" id="teamDropzone">
+                <input type="file" id="dataFile" accept=".csv,.edf">
+                <strong>选择 EEG/IMU 数据</strong>
+                <span id="dataFileName">CSV 或 EDF，默认上限 200 MB</span>
+              </div>
+              <details>
+                <summary>可选睡眠分期标注与处理参数</summary>
+                <div class="optional-grid">
+                  <label>Hypnogram 标注（EDF）<input type="file" id="annotationFile" accept=".edf"></label>
+                  <label>处理后端<select id="backend"><option value="research">Research · MNE + SciPy</option><option value="baseline">Baseline · 快速联调</option></select></label>
+                  <label>目标采样率 / Hz<input id="targetRate" type="number" min="1" value="128"></label>
+                  <label>带通下限 / Hz<input id="lowHz" type="number" min="0" step="0.1" value="0.5"></label>
+                  <label>带通上限 / Hz<input id="highHz" type="number" min="1" value="45"></label>
+                  <label>工频陷波 / Hz<input id="notchHz" type="number" min="0" value="50"></label>
+                  <label>IMU 运动阈值 / g<input id="motionThreshold" type="number" min="0" step="0.05" value="0.25"></label>
+                </div>
+              </details>
+              <div class="button-line">
+                <button class="primary" type="submit" id="uploadBtn">上传并提交</button>
+                <button class="secondary" type="button" id="demoBtn">创建演示任务</button>
+              </div>
+              <div class="form-message hidden" id="uploadMessage"></div>
+            </form>
+          </article>
+
+          <aside class="panel info-panel">
+            <span class="kicker">HOW IT WORKS</span>
+            <h3>团队共用的处理链路</h3>
+            <ol>
+              <li><b>01</b><span>每个任务保存上传者、文件哈希和参数</span></li>
+              <li><b>02</b><span>服务端统一完成滤波、质量和运动门控</span></li>
+              <li><b>03</b><span>全组可复核日志、特征和 HTML 报告</span></li>
+            </ol>
+            <div class="scope-box">
+              <strong>成员 A 的职责边界</strong>
+              <p>负责数据处理与质量验收；最终产品页面、模型和实时硬件接入分别由 C/D、B 和团队共同推进。</p>
+            </div>
+          </aside>
+        </section>
+
+        <section class="panel jobs-panel">
+          <div class="panel-heading">
+            <div><h3>团队任务记录</h3><p>所有成员共享查看，避免重复处理和参数不一致。</p></div>
+            <button class="ghost" id="refreshBtn">刷新</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>任务</th><th>提交者</th><th>数据</th><th>后端</th><th>状态</th><th>质量</th><th>时间</th><th></th></tr></thead>
+              <tbody id="jobsBody"><tr><td colspan="8" class="empty">正在读取任务…</td></tr></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section class="view hidden" id="datasetsView">
+        <section class="page-intro">
+          <span class="kicker">SHARED DATA CATALOG</span>
+          <h3>公开数据资源</h3>
+          <p>统一记录优先级、模态、许可和下载状态。受限健康数据必须先确认权限，不能通过团队平台转发原始文件。</p>
+        </section>
+        <div class="dataset-grid" id="datasetGrid"></div>
+      </section>
+
+      <section class="view hidden" id="protocolView">
+        <section class="page-intro">
+          <span class="kicker">TEAM PROTOCOL</span>
+          <h3>数据与实验规范</h3>
+          <p>平台是协作入口，但真正的科研质量仍取决于命名、标签、数据划分和过程留痕。</p>
+        </section>
+        <div class="protocol-grid">
+          <article class="panel"><span>01</span><h3>原始数据不覆盖</h3><p>每个任务保留输入 SHA-256，处理结果写入独立目录；不要覆盖唯一原始文件。</p></article>
+          <article class="panel"><span>02</span><h3>训练测试按 subject 隔离</h3><p>不能把同一受试者、同一 session 或重叠窗口同时放入训练集和测试集。</p></article>
+          <article class="panel"><span>03</span><h3>参数必须可追溯</h3><p>正式实验使用 Research 后端，报告记录 MNE/SciPy 版本、滤波参数和数据时长。</p></article>
+          <article class="panel"><span>04</span><h3>手动核查伪迹</h3><p>平台提供运动门控和质量提示，但 ICA 成分删除仍需人工查看，不能盲删。</p></article>
+          <article class="panel"><span>05</span><h3>受限数据最小化</h3><p>DREAMT 等受限数据不随意共享；团队成员只能在获批范围内使用。</p></article>
+          <article class="panel"><span>06</span><h3>结论区分质量与模型</h3><p>数据质量 A 不代表分类准确率高，最终结果必须经过真实数据与跨被试验证。</p></article>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="jobDialog">
+    <div class="dialog-head">
+      <div><span class="kicker">JOB DETAIL</span><h3 id="dialogTitle">任务详情</h3></div>
+      <button class="icon-button" id="closeDialog">×</button>
+    </div>
+    <div id="dialogContent" class="dialog-content"></div>
+  </dialog>
+
+  <script src="/assets/app.js"></script>
+</body>
+</html>
+

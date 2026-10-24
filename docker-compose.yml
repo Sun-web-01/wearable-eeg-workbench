@@ -1,0 +1,29 @@
+services:
+  eeg-team:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      EEG_DATA_DIR: /data
+      EEG_INVITE_CODE: ${EEG_INVITE_CODE:?请在 .env 中设置 EEG_INVITE_CODE}
+      EEG_COOKIE_SECRET: ${EEG_COOKIE_SECRET:?请在 .env 中设置 EEG_COOKIE_SECRET}
+      EEG_COOKIE_SECURE: ${EEG_COOKIE_SECURE:-0}
+      EEG_MAX_UPLOAD_MB: ${EEG_MAX_UPLOAD_MB:-200}
+      EEG_WORKERS: ${EEG_WORKERS:-2}
+    volumes:
+      - eeg_team_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3)"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  eeg_team_data:
+

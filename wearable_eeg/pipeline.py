@@ -153,14 +153,58 @@ def process_dataframe(
     if alignment["duration_s"] < 10.0 and config.low_hz < 1.0:
         warnings.append("数据短于 10 秒，0.5 Hz 低通对应的 FIR 可能长于信号，短片段结果仅用于读取联调。")
 
+    source_format = (metadata or {}).get("source_format", "csv")
+    is_synthetic = source_format == "synthetic"
+    data_origin = {
+        "kind": "synthetic" if is_synthetic else "uploaded",
+        "label": "系统合成演示数据" if is_synthetic else "用户上传数据",
+        "summary": (
+            "由平台内置程序生成，固定使用随机种子 42。包含 90 秒、128 Hz、"
+            "2 路 EEG、3 轴加速度和 18/47/73 秒三次模拟头动，不对应真实受试者。"
+            if is_synthetic
+            else "由用户上传并保存到团队任务目录，质量结论仅适用于本次输入与当前处理参数。"
+        ),
+        "purpose": (
+            "用于验证读取、滤波、质量检查、任务队列和报告导出流程，不能用于判断真实脑状态或模型效果。"
+            if is_synthetic
+            else "用于团队数据分析与结果复核，不构成医疗诊断。"
+        ),
+    }
+    glossary = {
+        "EEG": "脑电信号，反映头皮电位随时间的节律变化。",
+        "IMU": "惯性传感器数据，用于识别头部运动并辅助判断运动伪迹。",
+        "Quality score": "平台根据缺失、平直、高频噪声和运动伪迹计算的筛查分，不是模型准确率。",
+        "Sample rate": "每秒采集或保留的数据点数量，单位为 Hz。",
+        "Window": "从连续信号中截出的一段分析数据。",
+        "Kept windows": "通过运动门控并成功提取特征的窗口数量。",
+        "RMS": "信号均方根幅度，用于比较同一设备和同一通道的总体幅度。",
+    }
+    feature_dictionary = {
+        "epoch_id": "分析窗口的起点标识。",
+        "start_s": "窗口距记录开始的时间，单位为秒。",
+        "channel": "该行特征对应的 EEG 通道。",
+        "mean": "窗口内信号均值。",
+        "std": "窗口内信号标准差，反映波动范围。",
+        "rms": "窗口内信号均方根幅度。",
+        "motion_ratio": "窗口内被 IMU 标记为运动的数据比例。",
+        "delta_power": "0.5—4 Hz 频段的绝对功率。",
+        "theta_power": "4—8 Hz 频段的绝对功率。",
+        "alpha_power": "8—13 Hz 频段的绝对功率。",
+        "beta_power": "13—30 Hz 频段的绝对功率。",
+        "gamma_power": "30—45 Hz 频段的绝对功率。",
+        "_relative": "对应频段功率占选定总频段功率的比例。",
+        "_motion_artifact": "该采样点是否被 IMU 判为运动伪迹。",
+    }
+
     report = {
         "schema_version": "0.1",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "source": {
             "name": source_name,
-            "format": (metadata or {}).get("source_format", "csv"),
+            "format": source_format,
             "metadata": metadata or {},
         },
+        "data_origin": data_origin,
         "config": asdict(config),
         "environment": _environment(config.backend),
         "overview": {
@@ -193,6 +237,8 @@ def process_dataframe(
             "feature_names": sorted(feature_rows[0].keys()) if feature_rows else [],
         },
         "warnings": warnings,
+        "glossary": glossary,
+        "feature_dictionary": feature_dictionary,
         "method_notes": (
             [
                 "research 后端使用 SciPy 抗混叠重采样和 MNE 零相位 FIR 带通/陷波。",

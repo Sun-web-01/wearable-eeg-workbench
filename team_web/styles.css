@@ -1177,6 +1177,17 @@ details summary span { color: var(--faint); font-size: 8px; font-weight: 500; }
 .button-line button { min-height: 42px; }
 .button-line .primary { flex: 1.2; }
 .button-line .secondary { flex: .8; }
+.demo-note {
+  margin: 10px 0 0;
+  padding: 9px 11px;
+  border: 1px solid #e2e9f0;
+  border-radius: 8px;
+  color: var(--muted);
+  background: #f8fafc;
+  font-size: 8.5px;
+  line-height: 1.65;
+}
+.demo-note b { margin-right: 5px; color: #526b81; }
 .form-message {
   position: relative;
   margin-top: 12px;
@@ -1520,6 +1531,42 @@ dialog::backdrop { background: rgba(8, 20, 34, .58); backdrop-filter: blur(3px);
 .detail-inline { margin-top: 10px; color: #8995a4; font-size: 8px; }
 .detail-inline span + span::before { content: "·"; margin-right: 7px; color: #bdc7d2; }
 .detail-summary > .ghost { white-space: nowrap; }
+.demo-data-notice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  margin-bottom: 13px;
+  padding: 13px;
+  border: 1px solid #d9e7f3;
+  border-radius: 10px;
+  background: #f4f9fd;
+}
+.demo-data-tag {
+  align-self: start;
+  padding: 5px 8px;
+  border-radius: 999px;
+  color: var(--blue);
+  background: #e4f0fb;
+  font-size: 8px;
+  font-weight: 750;
+}
+.demo-data-notice strong { display: block; font-size: 10px; }
+.demo-data-notice p { margin: 4px 0 0; color: var(--muted); font-size: 9px; line-height: 1.65; }
+.report-guide {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+  margin-bottom: 13px;
+}
+.report-guide div {
+  padding: 9px 10px;
+  border: 1px solid #e4ebf2;
+  border-radius: 8px;
+  background: #fafcfd;
+}
+.report-guide b, .report-guide span { display: block; }
+.report-guide b { color: #49647a; font-size: 8px; }
+.report-guide span { margin-top: 3px; color: var(--faint); font-size: 8px; line-height: 1.5; }
 .detail-metric-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1548,6 +1595,7 @@ dialog::backdrop { background: rgba(8, 20, 34, .58); backdrop-filter: blur(3px);
 .detail-list > div { display: grid; grid-template-columns: 100px minmax(0, 1fr); gap: 10px; }
 .detail-list dt { color: var(--faint); font-size: 8.5px; }
 .detail-list dd { margin: 0; color: #44566a; font-size: 9.5px; line-height: 1.5; }
+.detail-list dd small { display: block; margin-top: 3px; color: #98a4b1; font-size: 7.5px; line-height: 1.45; }
 .detail-list dd.hash-value {
   max-height: 36px;
   overflow: hidden;
@@ -1577,12 +1625,28 @@ dialog::backdrop { background: rgba(8, 20, 34, .58); backdrop-filter: blur(3px);
   border-radius: 50%;
   background: #5c9acb;
 }
+.detail-card-note {
+  margin: 11px 0 0;
+  padding-top: 9px;
+  border-top: 1px solid #edf1f5;
+  color: var(--faint);
+  font-size: 8px;
+  line-height: 1.6;
+}
 .channel-section, .downloads-section, .timeline-section { margin-top: 12px; }
 .section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; margin-bottom: 7px; }
 .section-heading h3 { margin-bottom: 0; }
 .section-heading p { margin: 0; color: var(--faint); font-size: 8px; }
 .channel-section table { font-size: 9px; }
 .channel-section th, .channel-section td { padding: 9px 7px; }
+.channel-legend { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.channel-legend span {
+  padding: 5px 7px;
+  border-radius: 5px;
+  color: #788796;
+  background: #f4f7fa;
+  font-size: 7.5px;
+}
 .download-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 11px; }
 .download-card {
   display: grid;
@@ -1829,6 +1893,8 @@ dialog::backdrop { background: rgba(8, 20, 34, .58); backdrop-filter: blur(3px);
   .detail-summary > .ghost { grid-column: auto; }
   .detail-metric-grid, .detail-section-grid, .download-grid { grid-template-columns: 1fr; }
   .detail-list > div { grid-template-columns: 86px minmax(0, 1fr); }
+  .report-guide { grid-template-columns: 1fr 1fr; }
+  .demo-data-notice { grid-template-columns: 1fr; }
   .account-form-grid { grid-template-columns: 1fr; }
   .account-actions { display: grid; grid-template-columns: 1fr 1fr; }
   .sidebar nav { gap: 4px; }

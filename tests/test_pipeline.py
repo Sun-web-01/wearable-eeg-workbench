@@ -20,13 +20,20 @@ from wearable_eeg.synthetic import generate_demo
 class PipelineTests(unittest.TestCase):
     def test_demo_runs_end_to_end(self) -> None:
         frame = generate_demo(seconds=20, sample_rate=128)
-        report, processed = process_dataframe(frame, source_name="demo.csv")
+        report, processed = process_dataframe(
+            frame,
+            source_name="demo.csv",
+            metadata={"source_format": "synthetic", "purpose": "pipeline_acceptance"},
+        )
 
         self.assertEqual(report["overview"]["eeg_channels"], ["eeg_fpz", "eeg_pz"])
         self.assertEqual(report["overview"]["imu_channels"], ["acc_x_g", "acc_y_g", "acc_z_g"])
         self.assertGreater(report["quality"]["overall"]["score"], 80)
         self.assertGreater(report["quality"]["motion"]["artifact_ratio"], 0)
         self.assertGreater(report["features"]["rows"].__len__(), 0)
+        self.assertEqual(report["data_origin"]["kind"], "synthetic")
+        self.assertIn("RMS", report["glossary"])
+        self.assertIn("epoch_id", report["feature_dictionary"])
         self.assertIn("_motion_artifact", processed.columns)
         json.dumps(jsonable(report), ensure_ascii=False, allow_nan=False)
 

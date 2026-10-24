@@ -350,6 +350,7 @@ async function openJob(jobId) {
     const overall = report?.quality?.overall || {};
     const motion = report?.quality?.motion || {};
     const epochs = report?.epochs || {};
+    const dataOrigin = report?.data_origin || {};
     const config = job.config || {};
     const channels = Array.isArray(report?.quality?.channels) ? report.quality.channels : [];
     const issues = Array.isArray(overall.issues) ? overall.issues : [];
@@ -368,6 +369,22 @@ async function openJob(jobId) {
     const reportLink = completed
       ? `<a class="ghost small" href="/api/jobs/${job.id}/view" target="_blank" rel="noreferrer">在线查看质量报告</a>`
       : "";
+    const demoNotice = job.mode === "demo" || dataOrigin.kind === "synthetic" ? `
+      <div class="demo-data-notice">
+        <span class="demo-data-tag">系统演示数据</span>
+        <div>
+          <strong>程序合成，不对应真实受试者</strong>
+          <p>${escapeHtml(dataOrigin.summary || "由平台内置程序生成 90 秒、128 Hz、2 路 EEG 和 3 轴 IMU 测试信号，并加入三次模拟头动。")}
+          ${escapeHtml(dataOrigin.purpose || "仅用于验证读取、滤波、质量检查和报告流程，不能用于真实脑状态或模型效果判断。")}</p>
+        </div>
+      </div>` : "";
+    const reportGuide = completed ? `
+      <div class="report-guide">
+        <div><b>01 · 总评</b><span>先看 A–D 质量和主要问题。</span></div>
+        <div><b>02 · 伪迹</b><span>再看 IMU 判断出的头动比例。</span></div>
+        <div><b>03 · 通道</b><span>检查平直、削顶和高频噪声。</span></div>
+        <div><b>04 · 窗口</b><span>确认有多少片段能进入模型。</span></div>
+      </div>` : "";
     const channelRows = channels.map((channel) => `
       <tr>
         <td><span class="task-name">${escapeHtml(channel.channel)}</span></td>
@@ -414,13 +431,16 @@ async function openJob(jobId) {
         ${reportLink}
       </div>
 
+      ${demoNotice}
+      ${reportGuide}
+
       <div class="detail-metric-grid">
-        <div><span>数据时长</span><strong>${job.duration_s ? `${Number(job.duration_s).toFixed(1)} 秒` : "—"}</strong><small>可分析的有效时长</small></div>
-        <div><span>目标采样率</span><strong>${Number(overview.processed_sample_rate_hz || config.target_rate_hz || 0).toFixed(0)} Hz</strong><small>每秒保留的数据点</small></div>
-        <div><span>通道数量</span><strong>${eegChannels.length} EEG / ${imuChannels.length} IMU</strong><small>脑电与运动传感器</small></div>
-        <div><span>可用窗口</span><strong>${keptWindows} / ${totalWindows}</strong><small>保留 / 全部分析窗口</small></div>
-        <div><span>运动伪迹</span><strong>${formatRatio(artifactRatio)}</strong><small>被 IMU 标记的时间比例</small></div>
-        <div><span>输入规模</span><strong>${Number(overview.input_rows || 0).toLocaleString("zh-CN")}</strong><small>原始数据行数</small></div>
+        <div><span>数据时长</span><strong>${job.duration_s ? `${Number(job.duration_s).toFixed(1)} 秒` : "—"}</strong><small>连续记录长度，不等于可直接训练的有效样本量</small></div>
+        <div><span>目标采样率</span><strong>${Number(overview.processed_sample_rate_hz || config.target_rate_hz || 0).toFixed(0)} Hz</strong><small>每秒保留的数据点；Hz 是采样频率单位</small></div>
+        <div><span>通道数量</span><strong>${eegChannels.length} EEG / ${imuChannels.length} IMU</strong><small>EEG 是脑电，IMU 是加速度等运动信号</small></div>
+        <div><span>可用窗口</span><strong>${keptWindows} / ${totalWindows}</strong><small>已通过运动门控并成功提取特征的窗口数</small></div>
+        <div><span>运动伪迹</span><strong>${formatRatio(artifactRatio)}</strong><small>被 IMU 标记为头动或剧烈运动的采样比例</small></div>
+        <div><span>输入规模</span><strong>${Number(overview.input_rows || 0).toLocaleString("zh-CN")}</strong><small>CSV/EDF 展开后参与处理的总采样行数</small></div>
       </div>
 
       ${job.error ? `<div class="auth-error">${escapeHtml(job.error)}</div>` : ""}
@@ -431,21 +451,22 @@ async function openJob(jobId) {
           <h3>数据来源</h3>
           <dl class="detail-list">
             <div><dt>输入文件</dt><dd>${escapeHtml(job.input_name || "系统演示数据")}</dd></div>
-            <div><dt>数据格式</dt><dd>${escapeHtml(sourceFormat)}</dd></div>
-            <div><dt>处理完成</dt><dd>${formatDateTime(job.finished_at)}</dd></div>
+            <div><dt>数据格式</dt><dd>${escapeHtml(sourceFormat)}<small>CSV 适合表格时间序列；EDF 更适合正式生理信号记录。</small></dd></div>
+            <div><dt>处理完成</dt><dd>${formatDateTime(job.finished_at)}<small>这是本次报告生成前完成质量分析的时间。</small></dd></div>
             <div><dt>文件指纹</dt><dd class="hash-value">${escapeHtml(job.input_sha256 || "未记录")}</dd></div>
           </dl>
+          <p class="detail-card-note">${escapeHtml(dataOrigin.summary || "报告结论只对本次输入文件和当前处理参数负责。")}</p>
         </section>
 
         <section class="detail-card">
           <span class="eyebrow">参数快照</span>
           <h3>处理参数</h3>
           <dl class="detail-list">
-            <div><dt>处理模式</dt><dd>${backendLabel(job.backend)}</dd></div>
-            <div><dt>带通滤波</dt><dd>${config.low_hz ?? "—"}–${config.high_hz ?? "—"} Hz</dd></div>
-            <div><dt>工频陷波</dt><dd>${config.notch_hz ? `${config.notch_hz} Hz` : "关闭"}</dd></div>
-            <div><dt>运动阈值</dt><dd>${config.motion_threshold_g ?? "—"} g</dd></div>
-            <div><dt>窗口设置</dt><dd>${config.window_sec ?? "—"} 秒窗 / ${config.step_sec ?? "—"} 秒步长</dd></div>
+            <div><dt>处理模式</dt><dd>${backendLabel(job.backend)}<small>${job.backend === "research" ? "使用 MNE 与 SciPy，适合正式实验。" : "使用基础处理，适合快速检查流程。"}</small></dd></div>
+            <div><dt>带通滤波</dt><dd>${config.low_hz ?? "—"}–${config.high_hz ?? "—"} Hz<small>只保留主要脑电频段，减少慢漂移和高频噪声。</small></dd></div>
+            <div><dt>工频陷波</dt><dd>${config.notch_hz ? `${config.notch_hz} Hz` : "关闭"}<small>专门压低电网产生的固定频率干扰。</small></dd></div>
+            <div><dt>运动阈值</dt><dd>${config.motion_threshold_g ?? "—"} g<small>加速度超过阈值时，该片段可能被标记为运动伪迹。</small></dd></div>
+            <div><dt>窗口设置</dt><dd>${config.window_sec ?? "—"} 秒窗 / ${config.step_sec ?? "—"} 秒步长<small>每段分析数据的长度，以及相邻窗口向前移动的时间。</small></dd></div>
           </dl>
         </section>
 
@@ -453,10 +474,10 @@ async function openJob(jobId) {
           <span class="eyebrow">时间与完整性</span>
           <h3>对齐检查</h3>
           <dl class="detail-list">
-            <div><dt>EEG–IMU 时间轴</dt><dd>${alignment.eeg_imu_common_timebase ? "已对齐" : "未确认"}</dd></div>
-            <div><dt>最大时间缺口</dt><dd>${formatSeconds(alignment.max_gap_s)}</dd></div>
-            <div><dt>估计缺失比例</dt><dd>${formatRatio(alignment.estimated_missing_ratio)}</dd></div>
-            <div><dt>窗口拒绝数</dt><dd>${epochs.rejected_windows ?? "—"}</dd></div>
+            <div><dt>EEG–IMU 时间轴</dt><dd>${alignment.eeg_imu_common_timebase ? "已对齐" : "未确认"}<small>表示两类信号能按同一时间基准合并分析。</small></dd></div>
+            <div><dt>最大时间缺口</dt><dd>${formatSeconds(alignment.max_gap_s)}<small>相邻采样点之间最长的中断时间。</small></dd></div>
+            <div><dt>估计缺失比例</dt><dd>${formatRatio(alignment.estimated_missing_ratio)}<small>按理论采样率估算出的遗漏数据比例。</small></dd></div>
+            <div><dt>窗口拒绝数</dt><dd>${epochs.rejected_windows ?? "—"}<small>因运动比例过高等原因未进入特征提取的窗口。</small></dd></div>
           </dl>
         </section>
 
@@ -477,6 +498,13 @@ async function openJob(jobId) {
               <tbody>${channelRows}</tbody>
             </table>
           </div>
+          <div class="channel-legend">
+            <span>有效比例：非空数据占比</span>
+            <span>平直比例：信号长期不变化的程度</span>
+            <span>削顶比例：超出记录范围的程度</span>
+            <span>高频噪声：可能是肌电或设备干扰</span>
+            <span>RMS：同一设备和通道下的整体幅度参考</span>
+          </div>
         </section>` : ""}
 
       ${completed ? `
@@ -488,6 +516,7 @@ async function openJob(jobId) {
       <section class="detail-card timeline-section">
         <span class="eyebrow">过程记录</span>
         <h3>事件时间线</h3>
+        <p class="detail-note">按顺序记录文件上传、排队、读取、质量评估和完成状态；失败时会显示原因。</p>
         <div class="detail-timeline">
           ${data.events.map((event, index) => `<div><i>${String(index + 1).padStart(2, "0")}</i><p>${escapeHtml(event.message)}<time>${formatDateTime(event.created_at)}</time></p></div>`).join("")}
         </div>

@@ -156,6 +156,9 @@ class TeamPlatformTests(unittest.TestCase):
         html = self.client.get(f"/api/jobs/{job_id}/view")
         self.assertEqual(html.status_code, 200)
         self.assertIn("EEG/IMU 数据质量报告", html.text)
+        self.assertIn("系统合成演示数据", html.text)
+        self.assertIn("如何阅读这份报告", html.text)
+        self.assertIn("features.csv 字段说明", html.text)
 
 
 if __name__ == "__main__":

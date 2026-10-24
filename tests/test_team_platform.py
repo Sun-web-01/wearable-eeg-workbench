@@ -73,6 +73,9 @@ class TeamPlatformTests(unittest.TestCase):
 
     def test_health_and_auth_required(self) -> None:
         self.assertEqual(self.client.get("/api/health").status_code, 200)
+        page = self.client.get("/")
+        self.assertEqual(page.status_code, 200)
+        self.assertIn("no-store", page.headers["cache-control"])
         self.client.cookies.clear()
         self.assertEqual(self.client.get("/api/jobs").status_code, 401)
 

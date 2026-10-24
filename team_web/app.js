@@ -7,6 +7,7 @@ const state = {
   selectedFile: null,
   pollTimer: null,
   autoSync: true,
+  validationToken: 0,
 };
 
 function runBootSequence() {
@@ -706,6 +707,102 @@ $("syncToggle").addEventListener("click", () => {
   if (enabled) loadJobs();
 });
 
+const timeHeaderNames = new Set(["time_s", "timestamp", "timestamp_s", "time", "lsl_time", "seconds"]);
+const eegHeaderNames = new Set([
+  "fpz", "pz", "c3", "c4", "f3", "f4", "o1", "o2", "cz", "af3", "af4",
+  "f7", "f8", "fc5", "fc6", "t7", "t8", "p7", "p8",
+]);
+
+function parseCsvHeader(line) {
+  const cells = [];
+  let value = "";
+  let quoted = false;
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    if (char === '"' && quoted && line[index + 1] === '"') {
+      value += '"';
+      index += 1;
+    } else if (char === '"') {
+      quoted = !quoted;
+    } else if (char === "," && !quoted) {
+      cells.push(value.trim());
+      value = "";
+    } else {
+      value += char;
+    }
+  }
+  cells.push(value.trim());
+  return cells;
+}
+
+function setValidationItem(id, status, text) {
+  const element = $(id);
+  element.classList.remove("pass", "warn", "pending");
+  element.classList.add(status);
+  element.querySelector("strong").textContent = text;
+}
+
+function resetValidationPanel() {
+  $("validationState").className = "validation-state pending";
+  $("validationState").textContent = "等待选择文件";
+  setValidationItem("checkFormat", "pending", "待检查");
+  setValidationItem("checkSize", "pending", "待检查");
+  setValidationItem("checkContent", "pending", "待检查");
+  $("validationNote").textContent = "选择文件后会先检查格式、大小和 CSV 表头；EDF 将由服务端 MNE 进一步解析。";
+}
+
+function markServerValidationPending() {
+  $("validationState").className = "validation-state pending";
+  $("validationState").textContent = "服务端校验中";
+  setValidationItem("checkContent", "pending", "正在解析");
+  $("validationNote").textContent = "上传成功。服务端正在使用 Pandas/MNE 检查通道、时间轴、采样率和信号质量，结果会写入任务详情。";
+}
+
+async function updateFileValidation(file, token) {
+  const extension = file.name.split(".").pop()?.toLowerCase();
+  setValidationItem("checkFormat", "pass", extension === "edf" ? "EDF 生理信号" : "CSV 表格");
+  setValidationItem("checkSize", "pass", `${(file.size / 1024 / 1024).toFixed(2)} MB`);
+  $("validationState").className = "validation-state pending";
+  $("validationState").textContent = "预检中";
+
+  if (extension === "edf") {
+    setValidationItem("checkContent", "pending", "待服务端 MNE 校验");
+    $("validationState").textContent = "等待服务端校验";
+    $("validationNote").textContent = "EDF 文件格式和大小已通过。服务端会用 MNE 读取导联、采样率、时间轴和标注，完整检查在任务处理阶段完成。";
+    return;
+  }
+
+  try {
+    const text = await file.slice(0, 64 * 1024).text();
+    if (token !== state.validationToken) return;
+    const firstLine = text.split(/\r?\n/, 1)[0]?.replace(/^\uFEFF/, "") || "";
+    const headers = parseCsvHeader(firstLine);
+    const normalised = headers.map((header) => header.trim().toLowerCase().replace(/[-\s]+/g, "_"));
+    const hasTime = normalised.some((header) => timeHeaderNames.has(header));
+    const eegChannels = normalised.filter((header) => header.startsWith("eeg") || header.endsWith("_eeg") || eegHeaderNames.has(header));
+    const imuChannels = normalised.filter((header) => /acc|gyro|imu/.test(header));
+    if (hasTime && eegChannels.length) {
+      setValidationItem("checkContent", "pass", `${eegChannels.length} EEG / ${imuChannels.length} IMU`);
+      $("validationState").className = "validation-state pass";
+      $("validationState").textContent = "预检通过";
+      $("validationNote").textContent = "表头已识别时间列、EEG 通道和可选 IMU 通道。提交后服务端还会检查空值、重复时间点、采样率、缺口和信号质量。";
+    } else {
+      setValidationItem("checkContent", "warn", hasTime ? "未识别 EEG 列" : "未识别时间列");
+      $("validationState").className = "validation-state warn";
+      $("validationState").textContent = "建议检查表头";
+      $("validationNote").textContent = hasTime
+        ? "未找到 eeg_*、Fpz、Pz、C3 等 EEG 通道名。服务端可能拒绝处理，请检查 CSV 表头。"
+        : "未找到 time_s、time、timestamp 等时间列。当前上传接口需要时间列，请补充后再提交。";
+    }
+  } catch {
+    if (token !== state.validationToken) return;
+    setValidationItem("checkContent", "warn", "表头读取失败");
+    $("validationState").className = "validation-state warn";
+    $("validationState").textContent = "需要检查";
+    $("validationNote").textContent = "浏览器无法读取 CSV 表头，可能是编码或文件权限问题；仍可在提交后查看服务端校验结果。";
+  }
+}
+
 const dropzone = $("teamDropzone");
 let dragDepth = 0;
 dropzone.addEventListener("click", () => $("dataFile").click());
@@ -733,40 +830,51 @@ dropzone.addEventListener("drop", (event) => {
   event.preventDefault();
   dragDepth = 0;
   dropzone.classList.remove("dragging");
-  if (event.dataTransfer.files[0]) setDataFile(event.dataTransfer.files[0]);
+  if (event.dataTransfer.files[0]) void setDataFile(event.dataTransfer.files[0]);
 });
 $("dataFile").addEventListener("change", () => {
-  if ($("dataFile").files[0]) setDataFile($("dataFile").files[0]);
+  if ($("dataFile").files[0]) void setDataFile($("dataFile").files[0]);
 });
 
-function setDataFile(file) {
+async function setDataFile(file) {
   const extension = file.name.split(".").pop()?.toLowerCase();
   if (!["csv", "edf"].includes(extension)) {
     resetDataFile();
+    setValidationItem("checkFormat", "warn", "格式不支持");
+    $("validationState").className = "validation-state warn";
+    $("validationState").textContent = "需要检查";
     showMessage("文件格式不支持，请选择 CSV 或 EDF 文件。", true);
     return;
   }
   if (file.size > 200 * 1024 * 1024) {
     resetDataFile();
+    setValidationItem("checkFormat", "pass", extension === "edf" ? "EDF 生理信号" : "CSV 表格");
+    setValidationItem("checkSize", "warn", "超过 200 MB");
+    $("validationState").className = "validation-state warn";
+    $("validationState").textContent = "文件过大";
     showMessage("文件超过 200 MB 上限，请压缩或拆分后再上传。", true);
     return;
   }
   state.selectedFile = file;
+  state.validationToken += 1;
   $("uploadMessage").classList.add("hidden");
   $("dropTitle").textContent = "文件已准备好";
   $("dataFileName").textContent = `${file.name} · ${(file.size / 1024 / 1024).toFixed(2)} MB`;
   $("dropBrowse").textContent = "点击更换文件";
   dropzone.classList.add("selected");
   if (!$("jobTitle").value) $("jobTitle").value = file.name.replace(/\.[^.]+$/, "");
+  await updateFileValidation(file, state.validationToken);
 }
 
 function resetDataFile() {
   state.selectedFile = null;
+  state.validationToken += 1;
   $("dataFile").value = "";
   $("dropTitle").textContent = "拖拽 EEG/IMU 数据到这里";
   $("dataFileName").textContent = "支持 CSV 时间序列表格与 EDF 生理信号文件";
   $("dropBrowse").textContent = "或点击选择本地文件";
   dropzone.classList.remove("selected", "dragging");
+  resetValidationPanel();
 }
 
 $("uploadForm").addEventListener("submit", async (event) => {
@@ -786,8 +894,9 @@ $("uploadForm").addEventListener("submit", async (event) => {
   showMessage("正在上传并创建处理任务…");
   try {
     const data = await api("/api/jobs/upload", { method: "POST", body: form });
-    showMessage(`任务已进入队列：${data.job.id}`);
+    showMessage(`上传成功：${data.job.id}。服务端正在校验通道、时间轴和信号质量。`);
     resetDataFile();
+    markServerValidationPending();
     loadJobs();
   } catch (error) {
     showMessage(`提交失败：${error.message}`, true);
@@ -828,6 +937,7 @@ $("jobDialog").addEventListener("click", (event) => {
 });
 
 async function boot() {
+  resetValidationPanel();
   state.autoSync = readAutoSyncPreference();
   applyAutoSync(state.autoSync);
   setAuthMode("login");

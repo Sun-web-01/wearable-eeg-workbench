@@ -952,6 +952,79 @@ input:focus, select:focus {
   background: #f2faf6;
   box-shadow: 0 10px 26px rgba(41, 124, 98, .055);
 }
+.validation-panel {
+  margin-top: 10px;
+  padding: 12px 13px;
+  border: 1px solid #dfe8f0;
+  border-radius: 10px;
+  background: #fbfdff;
+}
+.validation-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.validation-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 7px;
+  border-radius: 999px;
+  color: #718094;
+  background: #eef2f6;
+  font-size: 8px;
+  font-weight: 650;
+}
+.validation-state::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #93a0ae;
+}
+.validation-state.pass { color: var(--green); background: var(--green-soft); }
+.validation-state.pass::before { background: var(--green); }
+.validation-state.warn { color: var(--amber); background: var(--amber-soft); }
+.validation-state.warn::before { background: var(--amber); }
+.validation-checks {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+.validation-item {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  padding: 7px 8px;
+  border: 1px solid #e6edf3;
+  border-radius: 7px;
+  background: #fff;
+  transition: border .2s, background .2s;
+}
+.validation-item i {
+  width: 10px;
+  height: 10px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #c6d1dc;
+  border-radius: 50%;
+}
+.validation-item span { color: #748396; font-size: 8px; }
+.validation-item strong {
+  grid-column: 2;
+  overflow: hidden;
+  color: #9aa6b3;
+  font-size: 8px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.validation-item.pass { border-color: #d5eade; background: #f6fbf8; }
+.validation-item.pass i { border-color: var(--green); background: var(--green); box-shadow: inset 0 0 0 2px #fff; }
+.validation-item.pass strong { color: var(--green); }
+.validation-item.warn { border-color: #f0dfc7; background: #fffbf5; }
+.validation-item.warn i { border-color: var(--amber); background: var(--amber); box-shadow: inset 0 0 0 2px #fff; }
+.validation-item.warn strong { color: var(--amber); }
+.validation-panel > p { margin: 8px 0 0; color: var(--faint); font-size: 8px; line-height: 1.6; }
 .format-explainer {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1727,6 +1800,8 @@ dialog::backdrop { background: rgba(8, 20, 34, .58); backdrop-filter: blur(3px);
   .panel-title { display: block; }
   .file-types { margin-top: 10px; }
   .optional-grid, .dataset-grid, .protocol-grid, .term-cards, .glossary dl, .format-explainer, .explain-strip { grid-template-columns: 1fr; }
+  .validation-checks { grid-template-columns: 1fr 1fr; }
+  #checkContent { grid-column: 1 / -1; }
   .button-line { flex-direction: column; }
   .button-line button { width: 100%; }
   .panel-heading { align-items: flex-start; }

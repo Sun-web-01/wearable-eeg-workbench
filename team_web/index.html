@@ -4,128 +4,258 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>NeuroTeam · 可穿戴脑电协作平台</title>
-  <link rel="stylesheet" href="/assets/styles.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230d2438'/%3E%3Cpath d='M4 17h5l3-8 4 14 4-10 3 4h5' fill='none' stroke='%238dc5fa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/assets/styles.css?v=20261024-2">
 </head>
 <body>
   <section class="auth-shell" id="authShell">
     <div class="auth-visual">
-      <div class="auth-brand"><span>N</span> NeuroTeam Lab</div>
-      <div>
-        <div class="kicker">TEAM DATA INFRASTRUCTURE</div>
-        <h1>让每一条 EEG 数据<br>都能被团队复核。</h1>
-        <p>共享数据入口、统一预处理参数、可追溯任务日志和标准化报告。数据集中保存在服务端，而不是散落在每个人的电脑里。</p>
+      <header class="auth-top">
+        <div class="brand-lockup">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 32 32"><path d="M3 17h5l3-8 5 15 4-11 3 4h6"/></svg>
+          </span>
+          <div><strong>NeuroTeam</strong><small>可穿戴脑电协作平台</small></div>
+        </div>
+        <span class="secure-pill"><i></i>团队私有空间</span>
+      </header>
+
+      <div class="auth-copy">
+        <p class="eyebrow">EEG × IMU · 数据协作</p>
+        <h1>让每一条脑电数据<br><em>可复核，也有上下文。</em></h1>
+        <p class="lead">从原始信号、预处理参数到质量报告，团队在同一处完成查看、提交和复核。先确认数据可靠，再进入脑状态识别。</p>
+
+        <div class="feature-row" aria-label="平台能力">
+          <div><span>01</span><strong>EEG 脑电</strong><small>观察节律，提取状态特征</small></div>
+          <div><span>02</span><strong>IMU 运动</strong><small>识别头动，辅助伪迹筛查</small></div>
+          <div><span>03</span><strong>质量报告</strong><small>保留参数，方便团队复现</small></div>
+        </div>
       </div>
-      <div class="signal-art" aria-hidden="true">
-        <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+
+      <div class="eeg-visual" aria-label="脑电波形示意">
+        <div class="signal-caption"><span><i></i>信号概览</span><small>EEG · 128 Hz</small></div>
+        <svg viewBox="0 0 760 150" preserveAspectRatio="none" aria-hidden="true">
+          <g class="wave-grid">
+            <path d="M0 25H760M0 60H760M0 95H760M0 130H760"/>
+            <path d="M80 0V150M160 0V150M240 0V150M320 0V150M400 0V150M480 0V150M560 0V150M640 0V150M720 0V150"/>
+          </g>
+          <path class="wave-dim" d="M0 77 C26 77 30 72 46 74 S70 90 90 76 110 34 134 74 158 108 182 77 208 61 232 75 252 93 276 77 300 57 324 73 344 104 368 78 390 35 414 75 436 106 458 76 478 63 500 75 522 91 544 78 566 49 590 74 612 97 636 77 658 63 680 74 704 87 728 77 744 65 760 76"/>
+          <path class="wave-line" d="M0 78 L42 78 L52 76 L60 78 L68 78 L84 79 L92 76 L102 78 L112 77 L124 79 L134 77 L144 39 L152 119 L160 61 L170 78 L184 77 L198 73 L246 75 L274 74 L288 77 L302 76 L314 73 L326 77 L338 76 L360 75 L380 77 L394 74 L404 50 L414 106 L424 65 L436 77 L452 75 L480 76 L494 73 L512 77 L532 76 L546 78 L558 39 L568 119 L578 61 L590 77 L620 76 L656 75 L688 77 L710 74 L728 76 L740 80 L750 78 L760 77"/>
+          <g class="wave-markers">
+            <circle cx="152" cy="61" r="4"/><circle cx="568" cy="61" r="4"/>
+          </g>
+        </svg>
+        <div class="signal-legend"><span>EEG 脑电</span><span>异常片段</span><span>可追溯处理</span></div>
       </div>
     </div>
+
     <div class="auth-panel">
-      <div class="auth-card">
-        <div class="auth-tabs">
-          <button class="active" data-auth-tab="login">登录</button>
-          <button data-auth-tab="register">加入团队</button>
+      <div class="auth-stack">
+        <div class="auth-card">
+          <div class="auth-tabs">
+            <button class="active" data-auth-tab="login">登录</button>
+            <button data-auth-tab="register">加入团队</button>
+          </div>
+          <div class="auth-card-head">
+            <p class="eyebrow">安全访问</p>
+            <h2 id="authHeading">登录团队工作台</h2>
+            <p id="authDescription">进入后可查看共享任务、提交数据并复核处理报告。</p>
+          </div>
+          <form id="authForm">
+            <label class="field">
+              <span class="field-label">用户名 <small>团队内用于区分提交者</small></span>
+              <input id="username" autocomplete="username" minlength="3" maxlength="32" placeholder="输入团队用户名" required>
+            </label>
+            <label class="field">
+              <span class="field-label">密码 <small>至少 8 位</small></span>
+              <input id="password" type="password" autocomplete="current-password" minlength="8" placeholder="输入登录密码" required>
+            </label>
+            <label class="field register-only hidden">
+              <span class="field-label">团队邀请码 <small>由团队管理员私下提供</small></span>
+              <input id="inviteCode" autocomplete="off" placeholder="输入邀请码">
+            </label>
+            <div class="auth-error hidden" id="authError" role="alert"></div>
+            <button class="primary wide" id="authSubmit" type="submit">登录平台</button>
+          </form>
+          <p class="auth-note">首次注册的成员将成为管理员。请勿在公共群聊中转发邀请码或账户密码。</p>
         </div>
-        <form id="authForm">
-          <label>用户名<input id="username" autocomplete="username" minlength="3" maxlength="32" required></label>
-          <label>密码<input id="password" type="password" autocomplete="current-password" minlength="8" required></label>
-          <label class="register-only hidden">团队邀请码<input id="inviteCode" autocomplete="off"></label>
-          <div class="auth-error hidden" id="authError"></div>
-          <button class="primary wide" id="authSubmit" type="submit">登录平台</button>
-        </form>
-        <p class="auth-note">首次注册的成员将成为管理员。账号只用于团队内部协作。</p>
+        <p class="auth-footer">用于科研数据协作与质量复核，不提供医疗诊断结论。</p>
       </div>
     </div>
   </section>
 
   <div class="app-shell hidden" id="appShell">
     <aside class="sidebar">
-      <div class="side-brand"><span>N</span><div><strong>NeuroTeam</strong><small>Wearable EEG Lab</small></div></div>
-      <nav>
-        <button class="nav-item active" data-view="jobs"><span>任务台</span><small>Jobs</small></button>
-        <button class="nav-item" data-view="datasets"><span>数据资源</span><small>Datasets</small></button>
-        <button class="nav-item" data-view="protocol"><span>团队规范</span><small>Protocol</small></button>
+      <div class="side-brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32"><path d="M3 17h5l3-8 5 15 4-11 3 4h6"/></svg>
+        </span>
+        <div><strong>NeuroTeam</strong><small>EEG · IMU 工作台</small></div>
+      </div>
+
+      <p class="side-label">团队工作区</p>
+      <nav aria-label="主导航">
+        <button class="nav-item active" data-view="jobs">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h7"/><circle cx="18" cy="16" r="3"/></svg>
+          <span><b>任务工作台</b><small>上传、处理与复核</small></span>
+        </button>
+        <button class="nav-item" data-view="datasets">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/></svg>
+          <span><b>数据资源</b><small>公开数据与许可</small></span>
+        </button>
+        <button class="nav-item" data-view="protocol">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l3 3v15H6z"/><path d="M9 11h6M9 15h6M9 7h3"/></svg>
+          <span><b>团队规范</b><small>实验与数据约定</small></span>
+        </button>
       </nav>
+
+      <div class="side-insight">
+        <span class="eyebrow">当前工作区</span>
+        <strong>EEG + IMU</strong>
+        <p>脑电用于状态特征，运动数据用于伪迹门控；先保证质量，再进入模型。</p>
+      </div>
+
       <div class="side-foot">
-        <div class="server-dot"></div>
-        <span>服务端已连接</span>
-        <small>数据保存在团队主机</small>
+        <div><i class="server-dot"></i><span>服务端已连接</span></div>
+        <small>数据保存在团队私有主机</small>
       </div>
     </aside>
 
     <main class="app-main">
       <header class="app-header">
         <div>
-          <div class="breadcrumb">NEUROTEAM / <span id="viewLabel">任务台</span></div>
-          <h2 id="pageTitle">团队任务台</h2>
+          <div class="breadcrumb">NEUROTEAM <span>/</span> <b id="viewLabel">任务工作台</b></div>
+          <h1 id="pageTitle">数据从这里进入模型</h1>
+          <p id="pageSubtitle">上传 EEG/IMU 数据，由服务端完成质量检查、预处理与可追溯报告。</p>
         </div>
-        <div class="header-user">
-          <div class="avatar" id="avatar">R</div>
-          <div><strong id="currentUser">—</strong><small id="currentRole">成员</small></div>
-          <button class="ghost small" id="logoutBtn">退出</button>
+        <div class="header-actions">
+          <div class="sync-status"><i></i><span>自动同步</span></div>
+          <div class="header-user">
+            <div class="avatar" id="avatar">R</div>
+            <div><strong id="currentUser">—</strong><small id="currentRole">团队成员</small></div>
+            <button class="ghost small" id="logoutBtn">退出</button>
+          </div>
         </div>
       </header>
 
       <section class="view" id="jobsView">
+        <div class="signal-brief">
+          <div class="mini-wave" aria-hidden="true">
+            <svg viewBox="0 0 180 54" preserveAspectRatio="none"><path d="M0 28h18l6-13 8 25 9-20 8 21 6-13h20l5-8 7 16 7-18 8 24 6-14h20l6-14 8 28 7-17 6 3h26"/></svg>
+          </div>
+          <div class="brief-copy">
+            <span class="eyebrow">数据质量优先</span>
+            <strong>先看信号，再谈识别</strong>
+            <p>平台的当前重点是把来源、时间轴、噪声和运动伪迹说清楚，让模型拿到可靠、可复现的数据。</p>
+          </div>
+          <div class="quality-tags" aria-label="数据处理原则">
+            <span>可追溯</span><span>可复核</span><span>可复现</span>
+          </div>
+        </div>
+
         <div class="stat-grid">
-          <article><span>全部任务</span><strong id="statTotal">0</strong><small>团队共享</small></article>
-          <article><span>已完成</span><strong id="statCompleted">0</strong><small>报告可交付</small></article>
-          <article><span>队列中</span><strong id="statProcessing">0</strong><small>等待/处理中</small></article>
-          <article><span>失败</span><strong id="statFailed">0</strong><small>需要检查</small></article>
+          <article class="stat-card"><span>全部任务</span><strong id="statTotal">0</strong><small>团队共享记录</small></article>
+          <article class="stat-card"><span>已完成</span><strong id="statCompleted">0</strong><small>报告可以复核</small></article>
+          <article class="stat-card"><span>处理中</span><strong id="statProcessing">0</strong><small>排队或正在分析</small></article>
+          <article class="stat-card"><span>需要检查</span><strong id="statFailed">0</strong><small>失败任务</small></article>
         </div>
 
         <section class="content-grid">
           <article class="panel upload-panel">
-            <div class="panel-title"><div><span class="kicker">NEW ANALYSIS</span><h3>提交数据任务</h3><p>CSV/EDF 上传后进入服务端处理队列，关闭浏览器不会中断任务。</p></div></div>
+            <div class="panel-title">
+              <div>
+                <span class="eyebrow">新建分析</span>
+                <h2>提交数据任务</h2>
+                <p>支持 CSV 表格与 EDF 生理信号文件。上传后进入后台队列，关闭浏览器不会中断处理。</p>
+              </div>
+              <div class="file-types"><span>CSV</span><span>EDF</span><small>≤ 200 MB</small></div>
+            </div>
             <form id="uploadForm">
-              <label>任务名称<input id="jobTitle" placeholder="例：Sleep-EDF SC4001 数据验收"></label>
+              <label class="field">
+                <span class="field-label">任务名称 <small>用受试者、日期和数据来源命名，便于复核</small></span>
+                <input id="jobTitle" placeholder="例：Sleep-EDF SC4001 数据验收">
+              </label>
               <div class="dropzone" id="teamDropzone">
                 <input type="file" id="dataFile" accept=".csv,.edf">
-                <strong>选择 EEG/IMU 数据</strong>
-                <span id="dataFileName">CSV 或 EDF，默认上限 200 MB</span>
+                <span class="drop-icon" aria-hidden="true">
+                  <svg viewBox="0 0 32 32"><path d="M3 17h5l3-8 5 15 4-11 3 4h6"/></svg>
+                </span>
+                <strong>选择或拖入 EEG/IMU 数据</strong>
+                <span id="dataFileName">CSV：时间序列表格；EDF：常规生理信号文件</span>
               </div>
               <details>
-                <summary>可选睡眠分期标注与处理参数</summary>
+                <summary>高级设置与参数说明 <span>可选</span></summary>
+                <p class="details-intro">初次使用时保持默认即可。Research 模式使用 MNE 与 SciPy 完成更适合正式实验的滤波和重采样。</p>
                 <div class="optional-grid">
-                  <label>Hypnogram 标注（EDF）<input type="file" id="annotationFile" accept=".edf"></label>
-                  <label>处理后端<select id="backend"><option value="research">Research · MNE + SciPy</option><option value="baseline">Baseline · 快速联调</option></select></label>
-                  <label>目标采样率 / Hz<input id="targetRate" type="number" min="1" value="128"></label>
-                  <label>带通下限 / Hz<input id="lowHz" type="number" min="0" step="0.1" value="0.5"></label>
-                  <label>带通上限 / Hz<input id="highHz" type="number" min="1" value="45"></label>
-                  <label>工频陷波 / Hz<input id="notchHz" type="number" min="0" value="50"></label>
-                  <label>IMU 运动阈值 / g<input id="motionThreshold" type="number" min="0" step="0.05" value="0.25"></label>
+                  <label class="field">
+                    <span class="field-label">睡眠分期标注 <small>Hypnogram，需为 EDF</small></span>
+                    <input type="file" id="annotationFile" accept=".edf">
+                  </label>
+                  <label class="field">
+                    <span class="field-label">处理模式 <small>正式实验或快速检查</small></span>
+                    <select id="backend">
+                      <option value="research">正式科研 · MNE + SciPy</option>
+                      <option value="baseline">快速预览 · 基础处理</option>
+                    </select>
+                  </label>
+                  <label class="field">
+                    <span class="field-label">目标采样率 <small>每秒保留的数据点，单位 Hz</small></span>
+                    <input id="targetRate" type="number" min="1" value="128">
+                  </label>
+                  <label class="field">
+                    <span class="field-label">带通下限 <small>去掉更慢的基线漂移，单位 Hz</small></span>
+                    <input id="lowHz" type="number" min="0" step="0.1" value="0.5">
+                  </label>
+                  <label class="field">
+                    <span class="field-label">带通上限 <small>保留脑电主要频段，单位 Hz</small></span>
+                    <input id="highHz" type="number" min="1" value="45">
+                  </label>
+                  <label class="field">
+                    <span class="field-label">工频陷波 <small>压制电网干扰，国内通常为 50 Hz</small></span>
+                    <input id="notchHz" type="number" min="0" value="50">
+                  </label>
+                  <label class="field">
+                    <span class="field-label">IMU 运动阈值 <small>超过后标记头动，单位 g</small></span>
+                    <input id="motionThreshold" type="number" min="0" step="0.05" value="0.25">
+                  </label>
                 </div>
               </details>
               <div class="button-line">
-                <button class="primary" type="submit" id="uploadBtn">上传并提交</button>
-                <button class="secondary" type="button" id="demoBtn">创建演示任务</button>
+                <button class="primary" type="submit" id="uploadBtn">上传并开始分析</button>
+                <button class="secondary" type="button" id="demoBtn">运行演示任务</button>
               </div>
-              <div class="form-message hidden" id="uploadMessage"></div>
+              <div class="form-message hidden" id="uploadMessage" role="status" aria-live="polite"></div>
             </form>
           </article>
 
-          <aside class="panel info-panel">
-            <span class="kicker">HOW IT WORKS</span>
-            <h3>团队共用的处理链路</h3>
-            <ol>
-              <li><b>01</b><span>每个任务保存上传者、文件哈希和参数</span></li>
-              <li><b>02</b><span>服务端统一完成滤波、质量和运动门控</span></li>
-              <li><b>03</b><span>全组可复核日志、特征和 HTML 报告</span></li>
-            </ol>
+          <aside class="panel guide-panel">
+            <div class="panel-title compact">
+              <div><span class="eyebrow">处理流程</span><h2>一条数据会经历什么</h2></div>
+            </div>
+            <div class="process-list">
+              <div><span>01</span><p><strong>读取与对齐</strong>识别 EEG、IMU、时间列，检查采样率和时间缺口。</p></div>
+              <div><span>02</span><p><strong>清洗与门控</strong>滤波、重采样，并用 IMU 标记剧烈头动片段。</p></div>
+              <div><span>03</span><p><strong>特征与报告</strong>提取频带特征，生成质量等级和可下载报告。</p></div>
+            </div>
+            <div class="term-cards">
+              <div><strong>EEG</strong><span>脑电信号</span><small>反映大脑电活动与节律</small></div>
+              <div><strong>IMU</strong><span>运动信号</span><small>帮助识别头动和伪迹</small></div>
+            </div>
             <div class="scope-box">
-              <strong>成员 A 的职责边界</strong>
-              <p>负责数据处理与质量验收；最终产品页面、模型和实时硬件接入分别由 C/D、B 和团队共同推进。</p>
+              <strong>团队协作</strong>
+              <p>我主要负责数据与信号处理，也会参与模型联调和结果讨论；模型、系统、实时展示和材料由大家一起推进。</p>
             </div>
           </aside>
         </section>
 
         <section class="panel jobs-panel">
           <div class="panel-heading">
-            <div><h3>团队任务记录</h3><p>所有成员共享查看，避免重复处理和参数不一致。</p></div>
-            <button class="ghost" id="refreshBtn">刷新</button>
+            <div><span class="eyebrow">共享记录</span><h2>团队任务</h2><p>所有成员共享查看，方便核对参数、结果和提交者。</p></div>
+            <button class="ghost" id="refreshBtn">刷新任务</button>
           </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>任务</th><th>提交者</th><th>数据</th><th>后端</th><th>状态</th><th>质量</th><th>时间</th><th></th></tr></thead>
+              <thead><tr><th>任务</th><th>提交者</th><th>数据文件</th><th>处理模式</th><th>状态</th><th>质量</th><th>创建时间</th><th></th></tr></thead>
               <tbody id="jobsBody"><tr><td colspan="8" class="empty">正在读取任务…</td></tr></tbody>
             </table>
           </div>
@@ -134,40 +264,54 @@
 
       <section class="view hidden" id="datasetsView">
         <section class="page-intro">
-          <span class="kicker">SHARED DATA CATALOG</span>
-          <h3>公开数据资源</h3>
-          <p>统一记录优先级、模态、许可和下载状态。受限健康数据必须先确认权限，不能通过团队平台转发原始文件。</p>
+          <div>
+            <span class="eyebrow">公开数据 · 来源可追溯</span>
+            <h2>找到适合当前实验的数据</h2>
+            <p>这里记录数据的任务、通道、采样率和许可。下载或申请前先确认使用范围，受限健康数据不要在团队外转发。</p>
+          </div>
+          <div class="intro-stat"><strong>P0</strong><span>优先验证</span></div>
         </section>
         <div class="dataset-grid" id="datasetGrid"></div>
       </section>
 
       <section class="view hidden" id="protocolView">
         <section class="page-intro">
-          <span class="kicker">TEAM PROTOCOL</span>
-          <h3>数据与实验规范</h3>
-          <p>平台是协作入口，但真正的科研质量仍取决于命名、标签、数据划分和过程留痕。</p>
+          <div>
+            <span class="eyebrow">实验规范 · 可复现优先</span>
+            <h2>让每一步都可以被复核</h2>
+            <p>平台是协作入口，科研质量仍取决于数据来源、命名、标签、划分和过程记录。</p>
+          </div>
+          <div class="intro-stat"><strong>6</strong><span>项基本约定</span></div>
         </section>
         <div class="protocol-grid">
-          <article class="panel"><span>01</span><h3>原始数据不覆盖</h3><p>每个任务保留输入 SHA-256，处理结果写入独立目录；不要覆盖唯一原始文件。</p></article>
-          <article class="panel"><span>02</span><h3>训练测试按 subject 隔离</h3><p>不能把同一受试者、同一 session 或重叠窗口同时放入训练集和测试集。</p></article>
-          <article class="panel"><span>03</span><h3>参数必须可追溯</h3><p>正式实验使用 Research 后端，报告记录 MNE/SciPy 版本、滤波参数和数据时长。</p></article>
-          <article class="panel"><span>04</span><h3>手动核查伪迹</h3><p>平台提供运动门控和质量提示，但 ICA 成分删除仍需人工查看，不能盲删。</p></article>
-          <article class="panel"><span>05</span><h3>受限数据最小化</h3><p>DREAMT 等受限数据不随意共享；团队成员只能在获批范围内使用。</p></article>
-          <article class="panel"><span>06</span><h3>结论区分质量与模型</h3><p>数据质量 A 不代表分类准确率高，最终结果必须经过真实数据与跨被试验证。</p></article>
+          <article class="panel"><span class="protocol-index">01</span><h3>保留原始数据</h3><p>原始文件只读保存，处理结果写入独立目录，并记录 SHA-256 指纹。</p></article>
+          <article class="panel"><span class="protocol-index">02</span><h3>按受试者隔离</h3><p>同一个人、同一次 session 或重叠窗口，不能同时进入训练集和测试集。</p></article>
+          <article class="panel"><span class="protocol-index">03</span><h3>参数可追溯</h3><p>正式实验使用 Research 模式，报告记录软件版本、滤波参数和数据时长。</p></article>
+          <article class="panel"><span class="protocol-index">04</span><h3>伪迹要人工复核</h3><p>平台负责发现和标记，ICA 等复杂去除步骤仍需成员检查，不能盲删。</p></article>
+          <article class="panel"><span class="protocol-index">05</span><h3>受限数据最小化</h3><p>DREAMT 等受限数据只在获批范围内使用，不通过平台或网盘对外转发。</p></article>
+          <article class="panel"><span class="protocol-index">06</span><h3>质量分不等于模型分</h3><p>数据质量 A 只表示信号较稳定，分类效果仍需真实标签和跨被试验证。</p></article>
         </div>
+        <section class="glossary panel">
+          <div><span class="eyebrow">快速理解</span><h2>几个常见术语</h2></div>
+          <dl>
+            <div><dt>Artifact / 伪迹</dt><dd>不是脑活动本身，而是眨眼、咬牙、头动或电极松动造成的干扰。</dd></div>
+            <div><dt>Epoch / 分析片段</dt><dd>从连续信号中截出的一段数据，例如 30 秒睡眠分期片段或 4 秒状态窗口。</dd></div>
+            <div><dt>Research / 正式科研模式</dt><dd>使用 MNE、SciPy 等研究工具完成滤波和重采样，结果更适合正式实验。</dd></div>
+            <div><dt>LOSO / 留一被试</dt><dd>每次拿一位受试者做测试，其余人训练，用来检查换人后模型是否仍然可靠。</dd></div>
+          </dl>
+        </section>
       </section>
     </main>
   </div>
 
   <dialog id="jobDialog">
     <div class="dialog-head">
-      <div><span class="kicker">JOB DETAIL</span><h3 id="dialogTitle">任务详情</h3></div>
-      <button class="icon-button" id="closeDialog">×</button>
+      <div><span class="eyebrow">任务详情</span><h2 id="dialogTitle">正在读取…</h2></div>
+      <button class="icon-button" id="closeDialog" aria-label="关闭任务详情">×</button>
     </div>
     <div id="dialogContent" class="dialog-content"></div>
   </dialog>
 
-  <script src="/assets/app.js"></script>
+  <script src="/assets/app.js?v=20261024-2"></script>
 </body>
 </html>
-

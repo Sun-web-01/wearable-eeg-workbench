@@ -112,6 +112,7 @@ def motion_artifacts(
     baseline = float(np.median(magnitude_g[np.isfinite(magnitude_g)]))
     flags = np.zeros(len(frame), dtype=bool)
     axis_thresholds: dict[str, float] = {}
+    dynamic_threshold = threshold_g
     acc_columns = [column for column in imu_channels if "acc" in column.lower()][:3]
 
     # Magnitude alone misses a pure X/Y head nod because sqrt(x^2+y^2+z^2)

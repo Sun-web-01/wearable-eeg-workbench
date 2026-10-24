@@ -54,6 +54,8 @@ time_s,eeg_fpz,eeg_pz,acc_x_g,acc_y_g,acc_z_g,state_label
 - 4 秒窗/2 秒步长频带功率特征；
 - JSON、HTML、特征 CSV、处理后 CSV 导出；
 - 本地 Web 界面和 HTTP API；
+- BrainFlow 蓝牙/串口设备扫描、原始数据采集和标准命名导出；
+- 采集完成后一键进入 Research/EDF/CSV 分析流程；
 - 演示数据与自动化测试。
 
 ## 关键目录
@@ -72,6 +74,7 @@ reports/demo/              已生成的演示报告
 docs/数据与信号执行手册.md  我的工作安排、协作方式和交付标准
 docs/数据与实验规范.md     格式、泄露检查与匿名化
 docs/上传校验与质量检查.md 上传预检、质量指标与公开项目调研
+docs/设备采集说明.md        BrainFlow 设备连接、录制与文件命名
 ```
 
 ## 命令

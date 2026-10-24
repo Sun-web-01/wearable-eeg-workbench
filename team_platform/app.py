@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 
 from wearable_eeg.pipeline import PipelineConfig
 
+from .acquisition import AcquisitionManager
 from .auth import (
     create_session,
     hash_password,
@@ -36,6 +37,7 @@ settings.data_dir.mkdir(parents=True, exist_ok=True)
 (settings.data_dir / "jobs").mkdir(exist_ok=True)
 database = Database(settings.data_dir / "team.db")
 runner = JobRunner(database, workers=settings.workers)
+acquisitions = AcquisitionManager(settings.data_dir)
 WEB_ROOT = Path(__file__).resolve().parent.parent / "team_web"
 
 
@@ -74,6 +76,14 @@ class AccountUpdatePayload(BaseModel):
     current_password: str = Field(min_length=1, max_length=128)
     new_username: str = Field(min_length=3, max_length=32)
     new_password: str | None = Field(default=None, max_length=128)
+
+
+class AcquisitionPayload(BaseModel):
+    profile_id: str = Field(min_length=1, max_length=32)
+    address: str = Field(default="", max_length=160)
+    subject_id: str = Field(default="S01", min_length=1, max_length=32)
+    task: str = Field(default="rest", min_length=1, max_length=32)
+    duration_sec: int = Field(default=30, ge=3, le=3600)
 
 
 class DemoPayload(BaseModel):
@@ -363,6 +373,113 @@ def create_demo_job(
     )
     database.add_event(job_id, "任务已进入队列")
     runner.submit(job_id)
+    return {"job": public_job(database.get_job(job_id))}
+
+
+@app.get("/api/devices/profiles")
+def device_profiles(_: Annotated[dict[str, Any], Depends(current_user)]):
+    return {"profiles": acquisitions.profiles()}
+
+
+@app.get("/api/devices/scan")
+async def scan_devices(_: Annotated[dict[str, Any], Depends(current_user)]):
+    return await acquisitions.scan(timeout_seconds=4.0)
+
+
+@app.get("/api/acquisitions")
+def list_acquisitions(_: Annotated[dict[str, Any], Depends(current_user)]):
+    return {"sessions": acquisitions.list_sessions()}
+
+
+@app.get("/api/acquisitions/{session_id}")
+def get_acquisition(session_id: str, _: Annotated[dict[str, Any], Depends(current_user)]):
+    session = acquisitions.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="采集任务不存在")
+    return {"session": acquisitions.public_session(session)}
+
+
+@app.post("/api/acquisitions")
+def start_acquisition(
+    payload: AcquisitionPayload,
+    user: Annotated[dict[str, Any], Depends(current_user)],
+):
+    try:
+        session = acquisitions.start(
+            profile_id=payload.profile_id,
+            address=payload.address,
+            subject_id=payload.subject_id,
+            task=payload.task,
+            duration_sec=payload.duration_sec,
+            user=user,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"session": session}
+
+
+@app.post("/api/acquisitions/{session_id}/stop")
+def stop_acquisition(session_id: str, _: Annotated[dict[str, Any], Depends(current_user)]):
+    try:
+        session = acquisitions.stop(session_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return {"session": session}
+
+
+@app.get("/api/acquisitions/{session_id}/download/{kind}")
+def download_acquisition(
+    session_id: str,
+    kind: str,
+    _: Annotated[dict[str, Any], Depends(current_user)],
+):
+    session = acquisitions.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="采集任务不存在")
+    name_key = {"csv": "csv_name", "edf": "edf_name", "metadata": "manifest_name"}.get(kind)
+    if not name_key or not session.get(name_key):
+        raise HTTPException(status_code=404, detail="采集文件不存在")
+    filename = str(session[name_key])
+    path = settings.data_dir / "recordings" / session_id / filename
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="采集文件尚未生成")
+    return FileResponse(path, filename=filename)
+
+
+@app.post("/api/acquisitions/{session_id}/analyze")
+def analyze_acquisition(
+    session_id: str,
+    user: Annotated[dict[str, Any], Depends(current_user)],
+):
+    session = acquisitions.get_session(session_id)
+    if not session or session.get("status") != "completed" or not session.get("csv_name"):
+        raise HTTPException(status_code=400, detail="只有已完成的采集才能提交分析")
+    if session.get("analysis_job_id"):
+        existing = database.get_job(str(session["analysis_job_id"]))
+        if existing:
+            return {"job": public_job(existing)}
+    input_path = settings.data_dir / "recordings" / session_id / session["csv_name"]
+    if not input_path.is_file():
+        raise HTTPException(status_code=404, detail="采集文件不存在")
+    config = PipelineConfig(backend="research")
+    job_id = uuid.uuid4().hex[:12]
+    output_dir = settings.data_dir / "jobs" / job_id
+    database.create_job(
+        job_id=job_id,
+        user=user,
+        title=f"设备采集 {session['file_base']}"[:120],
+        mode="device",
+        backend=config.backend,
+        config_json=json.dumps(asdict(config), ensure_ascii=False),
+        input_name=session["csv_name"],
+        input_path=str(input_path),
+        input_sha256=session.get("csv_sha256"),
+        output_dir=str(output_dir),
+    )
+    database.add_event(job_id, f"设备采集文件 {session['csv_name']} 已提交")
+    database.add_event(job_id, "任务已进入分析队列")
+    runner.submit(job_id)
+    acquisitions.set_analysis_job(session_id, job_id)
     return {"job": public_job(database.get_job(job_id))}
 
 

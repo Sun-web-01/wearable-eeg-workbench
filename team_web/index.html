@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>NeuroTeam · 可穿戴脑电协作平台</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230d2438'/%3E%3Cpath d='M4 17h5l3-8 4 14 4-10 3 4h5' fill='none' stroke='%238dc5fa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="/assets/styles.css?v=20261025-3">
+  <link rel="stylesheet" href="/assets/styles.css?v=20261025-4">
 </head>
 <body>
   <div class="boot-overlay" id="bootOverlay" aria-hidden="true">
@@ -144,6 +144,10 @@
         <button class="nav-item active" data-view="jobs">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h7"/><circle cx="18" cy="16" r="3"/></svg>
           <span><b>任务工作台</b><small>上传、处理与复核</small></span>
+        </button>
+        <button class="nav-item" data-view="devices">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="M7 8h10M8 12h2M12 12h4M8 16h3M14 16h2"/><circle cx="18" cy="20" r="2"/></svg>
+          <span><b>设备采集</b><small>连接设备与录制数据</small></span>
         </button>
         <button class="nav-item" data-view="datasets">
           <svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/></svg>
@@ -384,6 +388,104 @@
         </section>
       </section>
 
+      <section class="view hidden" id="devicesView">
+        <section class="page-intro">
+          <div>
+            <span class="eyebrow">设备采集 · 标准化录制</span>
+            <h2>连接设备并采集原始数据</h2>
+            <p>电脑通过 BrainFlow 连接 EEG 设备，平台统一保存时间轴、EEG、IMU、设备和任务信息。没有硬件时可以先使用模拟设备验证流程。</p>
+          </div>
+          <div class="intro-stat"><strong>CSV + EDF</strong><span>标准数据与元数据</span></div>
+        </section>
+
+        <div class="device-layout">
+          <article class="panel device-setup">
+            <div class="panel-title">
+              <div><span class="eyebrow">设备与命名</span><h2>新建采集</h2><p>设备地址只用于本机连接，不会写入公开报告。</p></div>
+              <button class="ghost" id="deviceScanBtn" type="button">扫描蓝牙与串口</button>
+            </div>
+            <div class="device-scan-results" id="deviceScanResults">
+              <span>尚未扫描。若使用真实设备，请先打开设备并允许电脑连接。</span>
+            </div>
+            <form id="acquisitionForm">
+              <div class="acquisition-grid">
+                <label class="field">
+                  <span class="field-label">设备类型 <small>按实际硬件选择</small></span>
+                  <select id="deviceProfile"></select>
+                </label>
+                <label class="field">
+                  <span class="field-label">设备地址 <small id="deviceAddressHint">模拟设备无需填写</small></span>
+                  <input id="deviceAddress" autocomplete="off" placeholder="蓝牙地址或串口">
+                </label>
+                <label class="field">
+                  <span class="field-label">匿名受试者编号 <small>请勿填写真实姓名</small></span>
+                  <input id="acquisitionSubject" value="S01" maxlength="32" pattern="[A-Za-z0-9_-]+" required>
+                </label>
+                <label class="field">
+                  <span class="field-label">状态标签 <small>写入文件名和训练标签</small></span>
+                  <select id="acquisitionTask">
+                    <option value="rest">静息基线</option>
+                    <option value="focused">专注</option>
+                    <option value="relaxed">放松</option>
+                    <option value="fatigued">疲劳</option>
+                    <option value="sleep">睡眠</option>
+                    <option value="other">其他</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span class="field-label">计划采集时长 <small>单位：秒，可在过程中停止</small></span>
+                  <input id="acquisitionDuration" type="number" min="3" max="3600" value="30" required>
+                </label>
+              </div>
+              <div class="device-profile-info" id="deviceProfileInfo">正在读取设备能力…</div>
+              <div class="file-name-preview">
+                <span>预计文件命名</span>
+                <code id="fileNamePreview">sub-S01_task-rest_acq-synthetic_日期时间.csv</code>
+                <small>同时保存 EEG 专用 EDF 和包含设备、通道、哈希值的 JSON 清单。</small>
+              </div>
+              <div class="button-line device-actions">
+                <button class="primary" id="startAcquisitionBtn" type="submit">开始采集</button>
+                <button class="secondary hidden" id="stopAcquisitionBtn" type="button">停止并保存</button>
+              </div>
+              <div class="form-message hidden" id="acquisitionMessage" role="status" aria-live="polite"></div>
+            </form>
+          </article>
+
+          <aside class="panel device-monitor">
+            <span class="eyebrow">实时状态</span>
+            <div class="device-monitor-head">
+              <div class="device-orbit idle" id="deviceOrbit"><i></i><span></span></div>
+              <div><h2 id="acquisitionStatusTitle">等待设备</h2><p id="acquisitionStatusDetail">选择设备后开始采集。</p></div>
+            </div>
+            <div class="acquisition-progress"><i id="acquisitionProgress"></i></div>
+            <div class="acquisition-metrics">
+              <div><span>已采集</span><strong id="acquisitionSeconds">0.0 s</strong></div>
+              <div><span>采样点</span><strong id="acquisitionSamples">0</strong></div>
+              <div><span>采样率</span><strong id="acquisitionRate">—</strong></div>
+              <div><span>当前会话</span><strong id="acquisitionSessionId">—</strong></div>
+            </div>
+            <div class="recording-format">
+              <div><b>CSV</b><span>通用时间序列，供平台读取和成员检查</span></div>
+              <div><b>EDF</b><span>EEG 常用研究格式，保存连续脑电信号</span></div>
+              <div><b>JSON</b><span>记录设备、任务、参数、文件哈希和说明</span></div>
+            </div>
+          </aside>
+        </div>
+
+        <section class="panel acquisition-history">
+          <div class="panel-heading">
+            <div><span class="eyebrow">采集记录</span><h2>最近采集</h2><p>记录保存在团队主机；完成后可直接下载或送入分析队列。</p></div>
+            <button class="ghost" id="refreshAcquisitionsBtn" type="button">刷新记录</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>文件任务</th><th>受试者</th><th>设备</th><th>时长</th><th>状态</th><th>创建时间</th><th>文件</th><th>分析</th></tr></thead>
+              <tbody id="acquisitionBody"><tr><td colspan="8" class="empty">正在读取采集记录…</td></tr></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
       <section class="view hidden" id="datasetsView">
         <section class="page-intro">
           <div>
@@ -492,6 +594,6 @@
     </div>
   </dialog>
 
-  <script src="/assets/app.js?v=20261025-3"></script>
+  <script src="/assets/app.js?v=20261025-4"></script>
 </body>
 </html>

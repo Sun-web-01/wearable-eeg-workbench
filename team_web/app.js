@@ -10,6 +10,9 @@ const state = {
   validationToken: 0,
   trustMode: "trace",
   trustJobId: null,
+  deviceProfiles: [],
+  activeAcquisitionId: null,
+  acquisitionPollTimer: null,
 };
 
 function runBootSequence() {
@@ -93,6 +96,7 @@ function setAuthMode(mode) {
 function showAuth() {
   state.user = null;
   clearInterval(state.pollTimer);
+  clearInterval(state.acquisitionPollTimer);
   $("appShell").classList.add("hidden");
   $("authShell").classList.remove("hidden");
   $("password").value = "";
@@ -187,6 +191,10 @@ function formatTime(value) {
 
 function statusLabel(status) {
   return {
+    starting: "准备中",
+    connecting: "连接中",
+    recording: "采集中",
+    stopping: "保存中",
     queued: "排队中",
     processing: "处理中",
     completed: "已完成",
@@ -814,6 +822,256 @@ async function loadTrustView() {
   }
 }
 
+const acquisitionTaskLabels = {
+  rest: "静息基线",
+  focused: "专注",
+  relaxed: "放松",
+  fatigued: "疲劳",
+  sleep: "睡眠",
+  other: "其他",
+};
+
+function selectedDeviceProfile() {
+  return state.deviceProfiles.find((profile) => profile.id === $("deviceProfile").value) || null;
+}
+
+function updateAcquisitionFileName() {
+  const profile = selectedDeviceProfile();
+  const subject = ($("acquisitionSubject").value || "S01").replace(/[^A-Za-z0-9_-]/g, "").toLowerCase() || "s01";
+  const task = $("acquisitionTask").value || "other";
+  const device = profile?.id || "device";
+  $("fileNamePreview").textContent = `sub-${subject}_task-${task}_acq-${device}_YYYYMMDD-HHMMSS.csv`;
+}
+
+function renderDeviceProfile() {
+  const profile = selectedDeviceProfile();
+  if (!profile) return;
+  const addressInput = $("deviceAddress");
+  addressInput.disabled = !profile.address_field;
+  addressInput.placeholder = profile.address_field ? profile.address_label : "模拟设备无需填写";
+  $("deviceAddressHint").textContent = profile.address_field ? profile.address_label : "模拟设备无需填写";
+  $("deviceProfileInfo").innerHTML = `<b>${escapeHtml(profile.label)}</b> · ${escapeHtml(profile.transport)} · ${profile.sample_rate_hz ?? "—"} Hz · EEG ${profile.eeg_channel_count} 通道 · IMU ${profile.imu_channel_count} 通道<br><span>${escapeHtml(profile.description)}</span>`;
+  updateAcquisitionFileName();
+}
+
+function renderScanResults(data) {
+  const container = $("deviceScanResults");
+  const devices = [...(data.serial_ports || []), ...(data.bluetooth || [])];
+  const warnings = data.warnings || [];
+  if (!devices.length && !warnings.length) {
+    container.innerHTML = "<span>未发现已开启的蓝牙或串口 EEG 设备。请检查设备电源、配对和 USB 接收器。</span>";
+    return;
+  }
+  const items = devices.map((device) => `
+    <button class="scan-device ${device.supported ? "" : "unsupported"}" type="button"
+      data-device-address="${escapeHtml(device.address)}" data-device-name="${escapeHtml(device.name || device.description || "")}">
+      ${escapeHtml(device.name || device.description || device.address)} · ${escapeHtml(device.address)}
+    </button>`).join("");
+  container.innerHTML = `${items || ""}${warnings.map((warning) => `<span>${escapeHtml(warning)}</span>`).join("")}`;
+  container.querySelectorAll("[data-device-address]").forEach((button) => {
+    button.addEventListener("click", () => {
+      $("deviceAddress").value = button.dataset.deviceAddress;
+      const label = button.dataset.deviceName.toLowerCase();
+      if (label.includes("muse s")) $("deviceProfile").value = "muse_s";
+      else if (label.includes("muse")) $("deviceProfile").value = "muse2";
+      else if (label.includes("cyton") || label.includes("openbci")) $("deviceProfile").value = "cyton";
+      renderDeviceProfile();
+    });
+  });
+}
+
+async function loadDeviceProfiles() {
+  try {
+    const data = await api("/api/devices/profiles");
+    state.deviceProfiles = data.profiles || [];
+    const select = $("deviceProfile");
+    const previous = select.value;
+    select.innerHTML = state.deviceProfiles.map((profile) =>
+      `<option value="${escapeHtml(profile.id)}">${escapeHtml(profile.label)} · ${escapeHtml(profile.transport)}</option>`
+    ).join("");
+    if (state.deviceProfiles.some((profile) => profile.id === previous)) select.value = previous;
+    renderDeviceProfile();
+  } catch (error) {
+    $("deviceProfileInfo").innerHTML = `<span>${escapeHtml(error.message)}</span>`;
+  }
+}
+
+async function scanDevices() {
+  const button = $("deviceScanBtn");
+  button.disabled = true;
+  button.textContent = "正在扫描…";
+  $("deviceScanResults").innerHTML = "<span>正在检查蓝牙设备和串口，请确保设备已开机并进入配对状态。</span>";
+  try {
+    renderScanResults(await api("/api/devices/scan"));
+  } catch (error) {
+    $("deviceScanResults").innerHTML = `<span>扫描失败：${escapeHtml(error.message)}</span>`;
+  } finally {
+    button.disabled = false;
+    button.textContent = "扫描蓝牙与串口";
+  }
+}
+
+function renderAcquisition(session) {
+  const statusMap = {
+    starting: ["正在准备", "正在创建采集目录"],
+    connecting: ["正在连接", "等待设备建立连接"],
+    recording: ["正在采集", "保持设备连接和佩戴状态"],
+    stopping: ["正在保存", "停止数据流并生成文件"],
+    completed: ["采集完成", "CSV、EDF 和元数据已保存"],
+    failed: ["采集失败", session.error || "请检查设备连接"],
+  };
+  const [title, detail] = statusMap[session.status] || ["等待设备", "选择设备后开始采集"];
+  $("acquisitionStatusTitle").textContent = title;
+  $("acquisitionStatusDetail").textContent = detail;
+  $("acquisitionSeconds").textContent = `${Number(session.captured_seconds || 0).toFixed(1)} s`;
+  $("acquisitionSamples").textContent = Number(session.samples || 0).toLocaleString("zh-CN");
+  $("acquisitionRate").textContent = session.sample_rate_hz ? `${session.sample_rate_hz} Hz` : "—";
+  $("acquisitionSessionId").textContent = session.id || "—";
+  const progress = Math.max(0, Math.min(100, Number(session.captured_seconds || 0) / Math.max(1, Number(session.duration_sec || 1)) * 100));
+  $("acquisitionProgress").style.width = `${progress}%`;
+  const orbit = $("deviceOrbit");
+  orbit.className = `device-orbit ${session.status}`;
+  const active = ["starting", "connecting", "recording", "stopping"].includes(session.status);
+  $("startAcquisitionBtn").disabled = active;
+  $("stopAcquisitionBtn").classList.toggle("hidden", !["starting", "connecting", "recording"].includes(session.status));
+  state.activeAcquisitionId = active ? session.id : null;
+}
+
+async function pollAcquisition() {
+  if (!state.activeAcquisitionId) return;
+  try {
+    const data = await api(`/api/acquisitions/${state.activeAcquisitionId}`);
+    renderAcquisition(data.session);
+    if (!["starting", "connecting", "recording", "stopping"].includes(data.session.status)) {
+      clearInterval(state.acquisitionPollTimer);
+      state.acquisitionPollTimer = null;
+      await loadAcquisitions();
+    }
+  } catch (error) {
+    $("acquisitionStatusTitle").textContent = "状态读取失败";
+    $("acquisitionStatusDetail").textContent = error.message;
+    clearInterval(state.acquisitionPollTimer);
+    state.acquisitionPollTimer = null;
+  }
+}
+
+function watchAcquisition(session) {
+  renderAcquisition(session);
+  clearInterval(state.acquisitionPollTimer);
+  state.acquisitionPollTimer = setInterval(pollAcquisition, 1000);
+}
+
+async function startAcquisition(event) {
+  event.preventDefault();
+  const profile = selectedDeviceProfile();
+  if (!profile) return;
+  const button = $("startAcquisitionBtn");
+  const original = button.textContent;
+  button.disabled = true;
+  button.textContent = "正在启动…";
+  $("acquisitionMessage").classList.remove("error");
+  $("acquisitionMessage").classList.add("hidden");
+  try {
+    const data = await api("/api/acquisitions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        profile_id: profile.id,
+        address: $("deviceAddress").value.trim(),
+        subject_id: $("acquisitionSubject").value.trim(),
+        task: $("acquisitionTask").value,
+        duration_sec: Number($("acquisitionDuration").value),
+      }),
+    });
+    watchAcquisition(data.session);
+    $("acquisitionMessage").textContent = `采集已启动：${data.session.csv_name}`;
+    $("acquisitionMessage").classList.remove("hidden");
+  } catch (error) {
+    $("acquisitionMessage").textContent = `启动失败：${error.message}`;
+    $("acquisitionMessage").classList.remove("hidden");
+    $("acquisitionMessage").classList.add("error");
+  } finally {
+    button.textContent = original;
+    button.disabled = Boolean(state.activeAcquisitionId);
+  }
+}
+
+async function stopAcquisition() {
+  if (!state.activeAcquisitionId) return;
+  try {
+    const data = await api(`/api/acquisitions/${state.activeAcquisitionId}/stop`, { method: "POST" });
+    $("acquisitionMessage").classList.remove("error");
+    renderAcquisition(data.session);
+  } catch (error) {
+    $("acquisitionMessage").classList.remove("error");
+    $("acquisitionMessage").textContent = `停止失败：${error.message}`;
+    $("acquisitionMessage").classList.remove("hidden");
+    $("acquisitionMessage").classList.add("error");
+  }
+}
+
+async function analyzeAcquisition(sessionId) {
+  try {
+    const data = await api(`/api/acquisitions/${sessionId}/analyze`, { method: "POST" });
+    $("acquisitionMessage").classList.remove("error");
+    $("acquisitionMessage").textContent = `已提交分析任务：${data.job.id}`;
+    $("acquisitionMessage").classList.remove("hidden");
+    await loadAcquisitions();
+    loadJobs();
+  } catch (error) {
+    $("acquisitionMessage").classList.remove("error");
+    $("acquisitionMessage").textContent = `提交分析失败：${error.message}`;
+    $("acquisitionMessage").classList.remove("hidden");
+    $("acquisitionMessage").classList.add("error");
+  }
+}
+
+async function loadAcquisitions() {
+  try {
+    const data = await api("/api/acquisitions");
+    if (!data.sessions.length) {
+      $("acquisitionBody").innerHTML = '<tr><td colspan="8" class="empty">还没有采集记录。连接设备或使用模拟设备开始第一次采集。</td></tr>';
+      return;
+    }
+    $("acquisitionBody").innerHTML = data.sessions.map((session) => {
+      const files = session.status === "completed" ? `
+        <div class="file-links">
+          <a href="/api/acquisitions/${session.id}/download/csv" download="${escapeHtml(session.csv_name || "")}">CSV</a>
+          ${session.edf_name ? `<a href="/api/acquisitions/${session.id}/download/edf" download="${escapeHtml(session.edf_name)}">EDF</a>` : ""}
+          <a href="/api/acquisitions/${session.id}/download/metadata" download="${escapeHtml(session.manifest_name || "")}">元数据</a>
+        </div>` : "—";
+      const analysis = session.status !== "completed"
+        ? "—"
+        : session.analysis_job_id
+          ? `<button class="link-button" data-open-acquisition-job="${escapeHtml(session.analysis_job_id)}">查看分析</button>`
+          : `<button class="link-button" data-analyze-acquisition="${escapeHtml(session.id)}">提交分析</button>`;
+      return `<tr>
+        <td><span class="task-name">${escapeHtml(session.csv_name || session.id)}</span><span class="subline">${escapeHtml(session.id)}</span></td>
+        <td>${escapeHtml(session.subject_id)} · ${escapeHtml(acquisitionTaskLabels[session.task] || session.task)}</td>
+        <td>${escapeHtml(session.profile_label)}</td>
+        <td>${Number(session.captured_seconds || 0).toFixed(1)} s</td>
+        <td><span class="badge ${escapeHtml(session.status)}">${statusLabel(session.status)}</span></td>
+        <td>${formatTime(session.created_at)}</td>
+        <td>${files}</td>
+        <td>${analysis}</td>
+      </tr>`;
+    }).join("");
+    document.querySelectorAll("[data-analyze-acquisition]").forEach((button) => {
+      button.addEventListener("click", () => void analyzeAcquisition(button.dataset.analyzeAcquisition));
+    });
+    document.querySelectorAll("[data-open-acquisition-job]").forEach((button) => {
+      button.addEventListener("click", () => void openJob(button.dataset.openAcquisitionJob));
+    });
+  } catch (error) {
+    $("acquisitionBody").innerHTML = `<tr><td colspan="8" class="empty">${escapeHtml(error.message)}</td></tr>`;
+  }
+}
+
+async function loadDeviceView() {
+  await loadDeviceProfiles();
+  await loadAcquisitions();
+}
+
 function setView(view) {
   document.querySelectorAll(".view").forEach((element) => element.classList.add("hidden"));
   document.querySelectorAll(".nav-item").forEach((button) => {
@@ -824,6 +1082,7 @@ function setView(view) {
   $(`${view}View`).classList.remove("hidden");
   const labels = {
     jobs: ["任务工作台", "数据从这里进入模型", "上传 EEG/IMU 数据，由服务端完成质量检查、预处理与可追溯报告。"],
+    devices: ["设备采集", "连接设备并采集原始数据", "通过 BrainFlow 连接 EEG/IMU 设备，按标准命名保存并提交分析。"],
     datasets: ["数据资源", "公开数据集", "核对来源、许可和访问权限，再选择适合当前实验的数据。"],
     protocol: ["团队规范", "数据与实验约定", "让数据来源、处理参数和被试划分都可以被团队复核。"],
   };
@@ -831,6 +1090,7 @@ function setView(view) {
   $("pageTitle").textContent = labels[view][1];
   $("pageSubtitle").textContent = labels[view][2];
   if (view === "datasets") loadDatasets();
+  if (view === "devices") void loadDeviceView();
 }
 
 document.querySelectorAll("[data-auth-tab]").forEach((button) => {
@@ -854,6 +1114,14 @@ $("closeTrustDialog").addEventListener("click", () => $("trustDialog").close());
 $("trustDialog").addEventListener("click", (event) => {
   if (event.target === $("trustDialog")) $("trustDialog").close();
 });
+
+$("deviceProfile").addEventListener("change", renderDeviceProfile);
+$("acquisitionSubject").addEventListener("input", updateAcquisitionFileName);
+$("acquisitionTask").addEventListener("change", updateAcquisitionFileName);
+$("deviceScanBtn").addEventListener("click", () => void scanDevices());
+$("refreshAcquisitionsBtn").addEventListener("click", () => void loadAcquisitions());
+$("acquisitionForm").addEventListener("submit", (event) => void startAcquisition(event));
+$("stopAcquisitionBtn").addEventListener("click", () => void stopAcquisition());
 
 $("authForm").addEventListener("submit", async (event) => {
   event.preventDefault();

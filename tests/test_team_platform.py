@@ -71,6 +71,17 @@ class TeamPlatformTests(unittest.TestCase):
             time.sleep(0.15)
         self.fail(f"任务 {job_id} 超时未完成")
 
+    def wait_for_acquisition(self, session_id: str, timeout: float = 15.0) -> dict:
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            response = self.client.get(f"/api/acquisitions/{session_id}")
+            self.assertEqual(response.status_code, 200, response.text)
+            session = response.json()["session"]
+            if session["status"] in {"completed", "failed"}:
+                return session
+            time.sleep(0.15)
+        self.fail(f"采集任务 {session_id} 超时未完成")
+
     def test_health_and_auth_required(self) -> None:
         self.assertEqual(self.client.get("/api/health").status_code, 200)
         page = self.client.get("/")
@@ -103,6 +114,40 @@ class TeamPlatformTests(unittest.TestCase):
             json={"username": "account-updated", "password": "new-password-456"},
         )
         self.assertEqual(new_login.status_code, 200, new_login.text)
+
+    def test_synthetic_device_acquisition_and_analysis(self) -> None:
+        profiles = self.client.get("/api/devices/profiles")
+        self.assertEqual(profiles.status_code, 200)
+        self.assertIn("synthetic", [item["id"] for item in profiles.json()["profiles"]])
+
+        response = self.client.post(
+            "/api/acquisitions",
+            json={
+                "profile_id": "synthetic",
+                "address": "",
+                "subject_id": "S99",
+                "task": "rest",
+                "duration_sec": 3,
+            },
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        session = response.json()["session"]
+        self.assertTrue(session["csv_name"].startswith("sub-s99_task-rest_acq-synthetic_"))
+        completed = self.wait_for_acquisition(session["id"])
+        self.assertEqual(completed["status"], "completed", completed)
+        self.assertTrue(completed["edf_name"].endswith(".edf"))
+
+        csv_file = self.client.get(f"/api/acquisitions/{session['id']}/download/csv")
+        metadata = self.client.get(f"/api/acquisitions/{session['id']}/download/metadata")
+        self.assertEqual(csv_file.status_code, 200)
+        self.assertEqual(metadata.status_code, 200)
+        self.assertIn("sub-s99_task-rest_acq-synthetic_", metadata.headers["content-disposition"])
+        self.assertEqual(metadata.json()["recording"]["files"]["csv"], completed["csv_name"])
+
+        analyzed = self.client.post(f"/api/acquisitions/{session['id']}/analyze")
+        self.assertEqual(analyzed.status_code, 200, analyzed.text)
+        job = self.wait_for_job(analyzed.json()["job"]["id"])
+        self.assertEqual(job["status"], "completed", job)
 
     def test_team_upload_queue_and_shared_history(self) -> None:
         self.assertEqual(self.owner["role"], "admin")

@@ -1,6 +1,8 @@
 -r requirements-research.txt
 brainflow>=5.14
 pylsl>=1.16
+bleak>=1.0
+pyserial>=3.5
 fastapi>=0.115
 uvicorn>=0.30
 

@@ -76,6 +76,31 @@ class TeamPlatformTests(unittest.TestCase):
         self.client.cookies.clear()
         self.assertEqual(self.client.get("/api/jobs").status_code, 401)
 
+    def test_account_username_and_password_update(self) -> None:
+        self.register("account-tester")
+        response = self.client.patch(
+            "/api/account",
+            json={
+                "current_password": "strong-password-123",
+                "new_username": "account-updated",
+                "new_password": "new-password-456",
+            },
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["user"]["username"], "account-updated")
+
+        self.client.cookies.clear()
+        old_login = self.client.post(
+            "/api/auth/login",
+            json={"username": "account-tester", "password": "strong-password-123"},
+        )
+        self.assertEqual(old_login.status_code, 401)
+        new_login = self.client.post(
+            "/api/auth/login",
+            json={"username": "account-updated", "password": "new-password-456"},
+        )
+        self.assertEqual(new_login.status_code, 200, new_login.text)
+
     def test_team_upload_queue_and_shared_history(self) -> None:
         self.assertEqual(self.owner["role"], "admin")
         alice = self.register("alice")

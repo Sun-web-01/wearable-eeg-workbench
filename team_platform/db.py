@@ -94,6 +94,24 @@ class Database:
                 "role": role,
             }
 
+    def update_account(self, user_id: int, username: str, password_hash: str) -> dict[str, Any]:
+        with self._lock, self.connect() as connection:
+            try:
+                connection.execute(
+                    "UPDATE users SET username = ?, password_hash = ? WHERE id = ?",
+                    (username, password_hash, user_id),
+                )
+            except sqlite3.IntegrityError as exc:
+                raise ValueError("用户名已存在。") from exc
+            connection.execute(
+                "UPDATE jobs SET owner_name = ? WHERE owner_id = ?",
+                (username, user_id),
+            )
+            row = connection.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+            if not row:
+                raise ValueError("账户不存在。")
+            return dict(row)
+
     def get_user_by_name(self, username: str) -> dict[str, Any] | None:
         with self.connect() as connection:
             row = connection.execute(

@@ -80,7 +80,7 @@ function setAuthMode(mode) {
   $("authHeading").textContent = mode === "login" ? "登录团队工作台" : "加入团队工作台";
   $("authDescription").textContent = mode === "login"
     ? "进入后可查看共享任务、提交数据并复核处理报告。"
-    : "创建个人账户，之后用同一账号查看团队数据和实验记录。";
+    : "使用团队邀请码创建个人账户，之后即可查看团队数据和实验记录。";
   $("passwordHint").textContent = mode === "login" ? "请输入账户密码" : "至少 8 位";
   $("password").autocomplete = mode === "login" ? "current-password" : "new-password";
   $("authError").classList.add("hidden");
@@ -104,6 +104,30 @@ function showApp(user) {
   setView("jobs");
   loadJobs();
   applyAutoSync(state.autoSync);
+}
+
+function updateAccountHeader(user) {
+  state.user = user;
+  $("currentUser").textContent = user.username;
+  $("avatar").textContent = user.username.slice(0, 1).toUpperCase();
+}
+
+function showAccountMessage(message, error = false) {
+  const element = $("accountMessage");
+  element.textContent = message;
+  element.classList.toggle("error", error);
+  element.classList.remove("hidden");
+}
+
+function openAccountDialog() {
+  if (!state.user) return;
+  $("accountUsername").value = state.user.username;
+  $("accountCurrentPassword").value = "";
+  $("accountNewPassword").value = "";
+  $("accountConfirmPassword").value = "";
+  $("accountMessage").classList.add("hidden");
+  $("accountDialog").showModal();
+  $("accountCurrentPassword").focus();
 }
 
 function readAutoSyncPreference() {
@@ -629,6 +653,51 @@ $("authForm").addEventListener("submit", async (event) => {
 $("logoutBtn").addEventListener("click", async () => {
   await api("/api/auth/logout", { method: "POST" });
   showAuth();
+});
+
+$("accountBtn").addEventListener("click", openAccountDialog);
+$("closeAccountDialog").addEventListener("click", () => $("accountDialog").close());
+$("cancelAccountBtn").addEventListener("click", () => $("accountDialog").close());
+$("accountDialog").addEventListener("click", (event) => {
+  if (event.target === $("accountDialog")) $("accountDialog").close();
+});
+
+$("accountForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const newUsername = $("accountUsername").value.trim();
+  const currentPassword = $("accountCurrentPassword").value;
+  const newPassword = $("accountNewPassword").value;
+  const confirmPassword = $("accountConfirmPassword").value;
+  if (newPassword !== confirmPassword) {
+    showAccountMessage("两次输入的新密码不一致。", true);
+    return;
+  }
+  const originalText = $("saveAccountBtn").textContent;
+  $("saveAccountBtn").disabled = true;
+  $("saveAccountBtn").textContent = "正在保存…";
+  try {
+    const data = await api("/api/account", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        current_password: currentPassword,
+        new_username: newUsername,
+        new_password: newPassword || null,
+      }),
+    });
+    updateAccountHeader(data.user);
+    $("accountUsername").value = data.user.username;
+    $("accountCurrentPassword").value = "";
+    $("accountNewPassword").value = "";
+    $("accountConfirmPassword").value = "";
+    showAccountMessage("账户设置已保存，下次登录请使用新的用户名和密码。");
+    loadJobs();
+  } catch (error) {
+    showAccountMessage(error.message, true);
+  } finally {
+    $("saveAccountBtn").disabled = false;
+    $("saveAccountBtn").textContent = originalText;
+  }
 });
 
 $("syncToggle").addEventListener("click", () => {

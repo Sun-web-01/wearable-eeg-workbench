@@ -61,6 +61,12 @@ class AuthPayload(BaseModel):
     invite_code: str | None = None
 
 
+class AccountUpdatePayload(BaseModel):
+    current_password: str = Field(min_length=1, max_length=128)
+    new_username: str = Field(min_length=3, max_length=32)
+    new_password: str | None = Field(default=None, max_length=128)
+
+
 class DemoPayload(BaseModel):
     title: str = "90 秒团队演示"
     config: dict[str, Any] = Field(default_factory=dict)
@@ -220,6 +226,29 @@ def login(payload: AuthPayload) -> JSONResponse:
         raise HTTPException(status_code=401, detail="用户名或密码错误")
     response = JSONResponse({"user": public_user(user)})
     set_session(response, user)
+    return response
+
+
+@app.patch("/api/account")
+def update_account(
+    payload: AccountUpdatePayload,
+    user: Annotated[dict[str, Any], Depends(current_user)],
+) -> JSONResponse:
+    if not verify_password(payload.current_password, user["password_hash"]):
+        raise HTTPException(status_code=403, detail="当前密码不正确")
+    try:
+        username, _ = validate_credentials(payload.new_username, "placeholder-123")
+        new_password = payload.new_password
+        if new_password:
+            _, new_password = validate_credentials(username, new_password)
+            password_hash = hash_password(new_password)
+        else:
+            password_hash = user["password_hash"]
+        updated = database.update_account(int(user["id"]), username, password_hash)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    response = JSONResponse({"user": public_user(updated)})
+    set_session(response, updated)
     return response
 
 

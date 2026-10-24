@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>NeuroTeam · 可穿戴脑电协作平台</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230d2438'/%3E%3Cpath d='M4 17h5l3-8 4 14 4-10 3 4h5' fill='none' stroke='%238dc5fa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="/assets/styles.css?v=20261024-4">
+  <link rel="stylesheet" href="/assets/styles.css?v=20261024-5">
 </head>
 <body>
   <div class="boot-overlay" id="bootOverlay" aria-hidden="true">
@@ -116,7 +116,7 @@
             <div class="auth-error hidden" id="authError" role="alert"></div>
             <button class="primary wide" id="authSubmit" type="submit">登录平台</button>
           </form>
-          <p class="auth-note">账户仅用于团队内部数据协作。请勿在公共群聊中转发邀请码或账户密码。</p>
+          <p class="auth-note">账户仅用于团队内部数据协作。请勿在公共群聊中转发邀请码或账户密码；登录后可在右上角修改账户。</p>
         </div>
         <p class="auth-footer">用于科研数据协作与质量复核，不提供医疗诊断结论。</p>
       </div>
@@ -175,8 +175,11 @@
             <i></i><span>自动同步</span>
           </button>
           <div class="header-user">
-            <div class="avatar" id="avatar">R</div>
-            <div><strong id="currentUser">—</strong><small>安全会话</small></div>
+            <button class="account-trigger" id="accountBtn" type="button" title="修改用户名或密码">
+              <div class="avatar" id="avatar">E</div>
+              <div><strong id="currentUser">—</strong><small>安全会话</small></div>
+              <span class="account-action">设置</span>
+            </button>
             <button class="ghost small" id="logoutBtn">退出</button>
           </div>
         </div>
@@ -403,6 +406,42 @@
     <div id="dialogContent" class="dialog-content"></div>
   </dialog>
 
-  <script src="/assets/app.js?v=20261024-4"></script>
+  <dialog id="accountDialog" class="account-dialog">
+    <div class="dialog-head">
+      <div><span class="eyebrow">账户设置</span><h2>修改用户名或密码</h2></div>
+      <button class="icon-button" id="closeAccountDialog" aria-label="关闭账户设置">×</button>
+    </div>
+    <form id="accountForm" class="dialog-content">
+      <div class="account-banner">
+        <span class="account-banner-icon">EEG</span>
+        <div><strong>个人账户安全</strong><p>修改用户名会同步更新历史任务中的提交者名称；修改密码需要先验证当前密码。</p></div>
+      </div>
+      <div class="account-form-grid">
+        <label class="field">
+          <span class="field-label">新用户名 <small>3—32 位，可使用中文、字母、数字、下划线或短横线</small></span>
+          <input id="accountUsername" minlength="3" maxlength="32" autocomplete="username" required>
+        </label>
+        <label class="field">
+          <span class="field-label">当前密码 <small>用于确认这是你本人操作</small></span>
+          <input id="accountCurrentPassword" type="password" autocomplete="current-password" required>
+        </label>
+        <label class="field">
+          <span class="field-label">新密码 <small>至少 8 位；留空表示不修改</small></span>
+          <input id="accountNewPassword" type="password" minlength="8" maxlength="128" autocomplete="new-password" placeholder="留空则不修改密码">
+        </label>
+        <label class="field">
+          <span class="field-label">确认新密码 <small>再次输入新密码</small></span>
+          <input id="accountConfirmPassword" type="password" minlength="8" maxlength="128" autocomplete="new-password" placeholder="再次输入新密码">
+        </label>
+      </div>
+      <div class="form-message hidden" id="accountMessage" role="status" aria-live="polite"></div>
+      <div class="account-actions">
+        <button class="secondary" id="cancelAccountBtn" type="button">取消</button>
+        <button class="primary" id="saveAccountBtn" type="submit">保存账户设置</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="/assets/app.js?v=20261024-5"></script>
 </body>
 </html>

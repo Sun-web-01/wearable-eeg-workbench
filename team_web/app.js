@@ -6,6 +6,7 @@ const state = {
   jobs: [],
   selectedFile: null,
   pollTimer: null,
+  autoSync: true,
 };
 
 async function api(path, options = {}) {
@@ -33,6 +34,7 @@ function setAuthMode(mode) {
   $("authDescription").textContent = mode === "login"
     ? "进入后可查看共享任务、提交数据并复核处理报告。"
     : "创建个人账户，之后用同一账号查看团队数据和实验记录。";
+  $("passwordHint").textContent = mode === "login" ? "请输入账户密码" : "至少 8 位";
   $("password").autocomplete = mode === "login" ? "current-password" : "new-password";
   $("authError").classList.add("hidden");
   $("authError").textContent = "";
@@ -54,8 +56,34 @@ function showApp(user) {
   $("avatar").textContent = user.username.slice(0, 1).toUpperCase();
   setView("jobs");
   loadJobs();
+  applyAutoSync(state.autoSync);
+}
+
+function readAutoSyncPreference() {
+  try {
+    return localStorage.getItem("neuroteam:auto-sync") !== "off";
+  } catch {
+    return true;
+  }
+}
+
+function applyAutoSync(enabled) {
+  state.autoSync = enabled;
   clearInterval(state.pollTimer);
-  state.pollTimer = setInterval(loadJobs, 3500);
+  if (enabled && state.user) {
+    state.pollTimer = setInterval(loadJobs, 3500);
+  }
+  const toggle = $("syncToggle");
+  toggle.classList.toggle("on", enabled);
+  toggle.classList.toggle("off", !enabled);
+  toggle.setAttribute("aria-pressed", String(enabled));
+  toggle.querySelector("span").textContent = enabled ? "自动同步" : "自动同步已关闭";
+  toggle.title = enabled ? "点击关闭任务自动刷新" : "点击开启任务自动刷新";
+  try {
+    localStorage.setItem("neuroteam:auto-sync", enabled ? "on" : "off");
+  } catch {
+    // Browser privacy settings may disable storage.
+  }
 }
 
 function showMessage(message, error = false) {
@@ -370,6 +398,12 @@ $("logoutBtn").addEventListener("click", async () => {
   showAuth();
 });
 
+$("syncToggle").addEventListener("click", () => {
+  const enabled = !state.autoSync;
+  applyAutoSync(enabled);
+  if (enabled) loadJobs();
+});
+
 const dropzone = $("teamDropzone");
 dropzone.addEventListener("click", () => $("dataFile").click());
 dropzone.addEventListener("dragover", (event) => event.preventDefault());
@@ -450,6 +484,8 @@ $("jobDialog").addEventListener("click", (event) => {
 });
 
 async function boot() {
+  state.autoSync = readAutoSyncPreference();
+  applyAutoSync(state.autoSync);
   setAuthMode("login");
   try {
     const data = await api("/api/me");

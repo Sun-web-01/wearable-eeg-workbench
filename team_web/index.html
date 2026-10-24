@@ -67,7 +67,7 @@
               <input id="username" autocomplete="username" minlength="3" maxlength="32" placeholder="输入团队用户名" required>
             </label>
             <label class="field">
-              <span class="field-label">密码 <small>至少 8 位</small></span>
+              <span class="field-label">密码 <small id="passwordHint">请输入账户密码</small></span>
               <input id="password" type="password" autocomplete="current-password" minlength="8" placeholder="输入登录密码" required>
             </label>
             <label class="field register-only hidden">
@@ -132,7 +132,9 @@
           <p id="pageSubtitle">上传 EEG/IMU 数据，由服务端完成质量检查、预处理与可追溯报告。</p>
         </div>
         <div class="header-actions">
-          <div class="sync-status"><i></i><span>自动同步</span></div>
+          <button class="sync-status on" id="syncToggle" type="button" aria-pressed="true" title="开启或关闭任务自动刷新">
+            <i></i><span>自动同步</span>
+          </button>
           <div class="header-user">
             <div class="avatar" id="avatar">R</div>
             <div><strong id="currentUser">—</strong><small>安全会话</small></div>

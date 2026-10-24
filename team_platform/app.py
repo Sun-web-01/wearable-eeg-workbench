@@ -129,6 +129,20 @@ def safe_filename(filename: str) -> str:
     return name[:180]
 
 
+def artifact_download_name(job: dict[str, Any], artifact: str) -> str:
+    labels = {
+        "report.html": "质量报告.html",
+        "report.json": "分析报告.json",
+        "features.csv": "窗口特征.csv",
+        "processed.csv": "处理后数据.csv",
+    }
+    base = safe_filename(str(job.get("title") or "EEG任务"))
+    base = re.sub(r"\.(csv|edf)$", "", base, flags=re.IGNORECASE)
+    base = re.sub(r'[<>:"/\\|?*]', "_", base).strip(" ._")[:80] or "EEG任务"
+    date = str(job.get("created_at") or "")[:10] or "未注明日期"
+    return f"{base}_{date}_{str(job['id'])[:6]}_{labels[artifact]}"
+
+
 async def save_upload(upload: UploadFile, destination: Path, max_bytes: int) -> tuple[int, str]:
     hasher = hashlib.sha256()
     total = 0
@@ -289,7 +303,7 @@ def download_artifact(
     path = Path(job["output_dir"]) / allowed[artifact]
     if not path.is_file():
         raise HTTPException(status_code=404, detail="文件尚未生成")
-    return FileResponse(path, filename=f"{job_id}-{artifact}")
+    return FileResponse(path, filename=artifact_download_name(job, artifact))
 
 
 @app.post("/api/jobs/demo")

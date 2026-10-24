@@ -36,7 +36,7 @@ function runBootSequence() {
   const statusTimer = setInterval(() => {
     statusIndex = Math.min(statusIndex + 1, statuses.length - 1);
     $("bootStatus").textContent = statuses[statusIndex];
-  }, 390);
+  }, 560);
 
   const finish = () => {
     if (finished) return;
@@ -53,7 +53,7 @@ function runBootSequence() {
   };
 
   overlay.addEventListener("click", finish, { once: true });
-  setTimeout(finish, 1900);
+  setTimeout(finish, 3300);
 }
 
 async function api(path, options = {}) {
@@ -250,6 +250,58 @@ function configFromForm() {
   };
 }
 
+function formatDateTime(value) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleString("zh-CN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
+
+function formatRatio(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? `${(number * 100).toFixed(1)}%` : "—";
+}
+
+function formatSeconds(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "—";
+  return number < 1 ? `${(number * 1000).toFixed(1)} ms` : `${number.toFixed(2)} s`;
+}
+
+function qualityDescription(grade) {
+  return {
+    A: "整体信号较稳定，可进入后续特征提取与模型对照；仍建议结合通道和运动伪迹明细检查。",
+    B: "数据总体可用，但存在需要人工确认的片段。建议先复核异常窗口，再进入模型训练。",
+    C: "信号质量偏低，可能有较多噪声、缺口或运动伪迹。建议调整采集或处理参数后重试。",
+    D: "当前数据不适合直接进入模型，请检查通道、时间轴、采样率和运动伪迹后重新处理。",
+  }[grade] || "报告尚未生成或质量等级不可用。";
+}
+
+function sourceFormatLabel(value) {
+  return {
+    synthetic: "系统合成演示数据",
+    csv: "CSV 表格数据",
+    edf: "EDF 生理信号",
+  }[String(value || "").toLowerCase()] || value || "已上传文件";
+}
+
+function downloadFileName(job, label, extension) {
+  let base = String(job.title || "EEG任务")
+    .replace(/\.(csv|edf)$/i, "")
+    .replace(/[<>:"/\\|?*]/g, "_")
+    .replace(/^[ ._]+|[ ._]+$/g, "")
+    .slice(0, 80) || "EEG任务";
+  const date = String(job.created_at || "").slice(0, 10) || "未注明日期";
+  return `${base}_${date}_${String(job.id).slice(0, 6)}_${label}.${extension}`;
+}
+
 async function openJob(jobId) {
   const dialog = $("jobDialog");
   $("dialogTitle").textContent = "正在读取任务…";
@@ -258,29 +310,163 @@ async function openJob(jobId) {
   try {
     const data = await api(`/api/jobs/${jobId}`);
     const job = data.job;
+    let report = null;
+    if (job.has_report && job.status === "completed") {
+      try {
+        report = await api(`/api/jobs/${job.id}/report`);
+      } catch {
+        report = null;
+      }
+    }
+
     $("dialogTitle").textContent = job.title;
-    const quality = job.quality_grade
-      ? `${job.quality_grade} · ${qualityLabel(job.quality_grade)}`
-      : "—";
-    const downloads = job.has_report && job.status === "completed" ? `
-      <div class="downloads">
-        <a href="/api/jobs/${job.id}/view" target="_blank">查看质量报告</a>
-        <a href="/api/jobs/${job.id}/download/report.json">报告数据 JSON</a>
-        <a href="/api/jobs/${job.id}/download/features.csv">窗口特征 CSV</a>
-        <a href="/api/jobs/${job.id}/download/processed.csv">处理后数据 CSV</a>
-      </div>` : "";
+    const overview = report?.overview || {};
+    const alignment = report?.alignment?.processed || report?.alignment || {};
+    const overall = report?.quality?.overall || {};
+    const motion = report?.quality?.motion || {};
+    const epochs = report?.epochs || {};
+    const config = job.config || {};
+    const channels = Array.isArray(report?.quality?.channels) ? report.quality.channels : [];
+    const issues = Array.isArray(overall.issues) ? overall.issues : [];
+    const grade = job.quality_grade || overall.grade || "—";
+    const scoreValue = Number(overall.score ?? job.quality_score);
+    const score = Number.isFinite(scoreValue) ? Math.max(0, Math.min(100, scoreValue)) : 0;
+    const eegChannels = Array.isArray(overview.eeg_channels) ? overview.eeg_channels : [];
+    const imuChannels = Array.isArray(overview.imu_channels) ? overview.imu_channels : [];
+    const keptWindows = Number(epochs.kept_windows ?? 0);
+    const totalWindows = Number(epochs.total_windows ?? 0);
+    const artifactRatio = overall.motion_artifact_ratio ?? motion.artifact_ratio;
+    const completed = job.status === "completed" && report;
+    const sourceFormat = sourceFormatLabel(
+      overview.source_format || report?.source?.format || (job.mode === "demo" ? "synthetic" : "已上传文件"),
+    );
+    const reportLink = completed
+      ? `<a class="ghost small" href="/api/jobs/${job.id}/view" target="_blank" rel="noreferrer">在线查看质量报告</a>`
+      : "";
+    const channelRows = channels.map((channel) => `
+      <tr>
+        <td><span class="task-name">${escapeHtml(channel.channel)}</span></td>
+        <td>${formatRatio(channel.valid_ratio)}</td>
+        <td>${formatRatio(channel.flat_ratio)}</td>
+        <td>${formatRatio(channel.clipping_ratio)}</td>
+        <td>${formatRatio(channel.high_frequency_ratio)}</td>
+        <td>${Number.isFinite(Number(channel.rms_uv)) ? `${Number(channel.rms_uv).toFixed(2)} μV` : "—"}</td>
+        <td><span class="badge ${escapeHtml(channel.grade || "")}">${escapeHtml(channel.grade || "—")}</span></td>
+      </tr>`).join("");
+    const artifacts = [
+      ["report.html", "质量报告", "html", "适合在浏览器中阅读和归档"],
+      ["report.json", "分析报告", "json", "包含参数与质量结果，适合程序读取"],
+      ["features.csv", "窗口特征", "csv", "每个时间窗口的频带功率与质量指标"],
+      ["processed.csv", "处理后数据", "csv", "完成滤波、重采样和标记后的信号"],
+    ];
+    const downloadCards = completed ? artifacts.map(([artifact, label, extension, description]) => {
+      const filename = downloadFileName(job, label, extension);
+      return `
+        <a class="download-card" href="/api/jobs/${job.id}/download/${artifact}" download="${escapeHtml(filename)}">
+          <span class="download-format">${extension.toUpperCase()}</span>
+          <span class="download-copy"><strong>${label}</strong><small>${escapeHtml(filename)}</small><em>${description}</em></span>
+          <b aria-hidden="true">↓</b>
+        </a>`;
+    }).join("") : "";
     $("dialogContent").innerHTML = `
-      <div class="detail-metrics">
-        <div><span>任务状态</span><strong>${statusLabel(job.status)}</strong></div>
-        <div><span>数据时长</span><strong>${job.duration_s ? `${Number(job.duration_s).toFixed(1)} 秒` : "—"}</strong></div>
-        <div><span>信号质量</span><strong>${quality}</strong></div>
-        <div><span>提交者</span><strong>${escapeHtml(job.owner_name)}</strong></div>
+      <div class="detail-summary">
+        <div class="quality-gauge grade-${escapeHtml(grade)}" style="--quality-score:${score}">
+          <div><strong>${escapeHtml(grade)}</strong><span>${score ? score.toFixed(1) : "—"}</span><small>质量分</small></div>
+        </div>
+        <div class="detail-summary-copy">
+          <div class="detail-status-line">
+            <span class="badge ${job.status}">${statusLabel(job.status)}</span>
+            <span class="detail-mode">${backendLabel(job.backend)}</span>
+            <span class="detail-id">任务 ${escapeHtml(job.id)}</span>
+          </div>
+          <h3>${grade === "—" ? "等待质量报告" : `信号质量 ${grade} · ${qualityLabel(grade)}`}</h3>
+          <p>${qualityDescription(grade)}</p>
+          <div class="detail-inline">
+            <span>提交者 ${escapeHtml(job.owner_name)}</span>
+            <span>创建于 ${formatDateTime(job.created_at)}</span>
+          </div>
+        </div>
+        ${reportLink}
       </div>
-      <p class="subline">输入文件：${escapeHtml(job.input_name || "系统演示数据")} · SHA-256 文件指纹：${escapeHtml(job.input_sha256 || "未记录")}</p>
+
+      <div class="detail-metric-grid">
+        <div><span>数据时长</span><strong>${job.duration_s ? `${Number(job.duration_s).toFixed(1)} 秒` : "—"}</strong><small>可分析的有效时长</small></div>
+        <div><span>目标采样率</span><strong>${Number(overview.processed_sample_rate_hz || config.target_rate_hz || 0).toFixed(0)} Hz</strong><small>每秒保留的数据点</small></div>
+        <div><span>通道数量</span><strong>${eegChannels.length} EEG / ${imuChannels.length} IMU</strong><small>脑电与运动传感器</small></div>
+        <div><span>可用窗口</span><strong>${keptWindows} / ${totalWindows}</strong><small>保留 / 全部分析窗口</small></div>
+        <div><span>运动伪迹</span><strong>${formatRatio(artifactRatio)}</strong><small>被 IMU 标记的时间比例</small></div>
+        <div><span>输入规模</span><strong>${Number(overview.input_rows || 0).toLocaleString("zh-CN")}</strong><small>原始数据行数</small></div>
+      </div>
+
       ${job.error ? `<div class="auth-error">${escapeHtml(job.error)}</div>` : ""}
-      <h3>处理日志</h3>
-      <div class="event-log">${data.events.map((event) => `<div>${escapeHtml(event.message)}<time>${formatTime(event.created_at)}</time></div>`).join("")}</div>
-      ${downloads}`;
+
+      <div class="detail-section-grid">
+        <section class="detail-card">
+          <span class="eyebrow">输入与身份</span>
+          <h3>数据来源</h3>
+          <dl class="detail-list">
+            <div><dt>输入文件</dt><dd>${escapeHtml(job.input_name || "系统演示数据")}</dd></div>
+            <div><dt>数据格式</dt><dd>${escapeHtml(sourceFormat)}</dd></div>
+            <div><dt>处理完成</dt><dd>${formatDateTime(job.finished_at)}</dd></div>
+            <div><dt>文件指纹</dt><dd class="hash-value">${escapeHtml(job.input_sha256 || "未记录")}</dd></div>
+          </dl>
+        </section>
+
+        <section class="detail-card">
+          <span class="eyebrow">参数快照</span>
+          <h3>处理参数</h3>
+          <dl class="detail-list">
+            <div><dt>处理模式</dt><dd>${backendLabel(job.backend)}</dd></div>
+            <div><dt>带通滤波</dt><dd>${config.low_hz ?? "—"}–${config.high_hz ?? "—"} Hz</dd></div>
+            <div><dt>工频陷波</dt><dd>${config.notch_hz ? `${config.notch_hz} Hz` : "关闭"}</dd></div>
+            <div><dt>运动阈值</dt><dd>${config.motion_threshold_g ?? "—"} g</dd></div>
+            <div><dt>窗口设置</dt><dd>${config.window_sec ?? "—"} 秒窗 / ${config.step_sec ?? "—"} 秒步长</dd></div>
+          </dl>
+        </section>
+
+        <section class="detail-card">
+          <span class="eyebrow">时间与完整性</span>
+          <h3>对齐检查</h3>
+          <dl class="detail-list">
+            <div><dt>EEG–IMU 时间轴</dt><dd>${alignment.eeg_imu_common_timebase ? "已对齐" : "未确认"}</dd></div>
+            <div><dt>最大时间缺口</dt><dd>${formatSeconds(alignment.max_gap_s)}</dd></div>
+            <div><dt>估计缺失比例</dt><dd>${formatRatio(alignment.estimated_missing_ratio)}</dd></div>
+            <div><dt>窗口拒绝数</dt><dd>${epochs.rejected_windows ?? "—"}</dd></div>
+          </dl>
+        </section>
+
+        <section class="detail-card">
+          <span class="eyebrow">质量提示</span>
+          <h3>需要关注的信号</h3>
+          <p class="detail-note">${overall.manual_review_required ? "报告建议人工复核以下内容。" : "未要求强制人工复核，仍建议结合原始波形确认。"}</p>
+          <ul class="issue-list">${(issues.length ? issues : ["未报告明显全段质量问题。"]).map((issue) => `<li>${escapeHtml(issue)}</li>`).join("")}</ul>
+        </section>
+      </div>
+
+      ${channels.length ? `
+        <section class="detail-card channel-section">
+          <div class="section-heading"><div><span class="eyebrow">逐通道检查</span><h3>通道质量</h3></div><p>有效比例越高、平坦和削顶比例越低，通常越适合进入建模。</p></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>通道</th><th>有效比例</th><th>平直比例</th><th>削顶比例</th><th>高频噪声</th><th>RMS 幅度</th><th>等级</th></tr></thead>
+              <tbody>${channelRows}</tbody>
+            </table>
+          </div>
+        </section>` : ""}
+
+      ${completed ? `
+        <section class="detail-card downloads-section">
+          <div class="section-heading"><div><span class="eyebrow">结果交付</span><h3>下载处理结果</h3></div><p>文件名包含任务名称、日期和文件用途，方便直接归档。</p></div>
+          <div class="download-grid">${downloadCards}</div>
+        </section>` : `<div class="detail-empty">${job.status === "failed" ? "任务失败，暂无结果文件。" : "报告仍在生成，完成后再下载结果。"}</div>`}
+
+      <section class="detail-card timeline-section">
+        <span class="eyebrow">过程记录</span>
+        <h3>事件时间线</h3>
+        <div class="detail-timeline">
+          ${data.events.map((event, index) => `<div><i>${String(index + 1).padStart(2, "0")}</i><p>${escapeHtml(event.message)}<time>${formatDateTime(event.created_at)}</time></p></div>`).join("")}
+        </div>
+      </section>`;
   } catch (error) {
     $("dialogTitle").textContent = "任务读取失败";
     $("dialogContent").innerHTML = `<div class="auth-error">${escapeHtml(error.message)}</div>`;

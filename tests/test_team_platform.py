@@ -108,6 +108,7 @@ class TeamPlatformTests(unittest.TestCase):
         features = self.client.get(f"/api/jobs/{job_id}/download/features.csv")
         self.assertEqual(features.status_code, 200)
         self.assertGreater(len(features.content), 100)
+        self.assertIn("filename*=utf-8''", features.headers["content-disposition"])
 
         bob = self.register("bob")
         self.assertEqual(bob["role"], "member")

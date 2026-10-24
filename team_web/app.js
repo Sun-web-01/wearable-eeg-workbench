@@ -707,10 +707,32 @@ $("syncToggle").addEventListener("click", () => {
 });
 
 const dropzone = $("teamDropzone");
+let dragDepth = 0;
 dropzone.addEventListener("click", () => $("dataFile").click());
-dropzone.addEventListener("dragover", (event) => event.preventDefault());
+dropzone.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" || event.key === " ") {
+    event.preventDefault();
+    $("dataFile").click();
+  }
+});
+dropzone.addEventListener("dragenter", (event) => {
+  event.preventDefault();
+  dragDepth += 1;
+  dropzone.classList.add("dragging");
+});
+dropzone.addEventListener("dragover", (event) => {
+  event.preventDefault();
+  event.dataTransfer.dropEffect = "copy";
+});
+dropzone.addEventListener("dragleave", (event) => {
+  event.preventDefault();
+  dragDepth = Math.max(0, dragDepth - 1);
+  if (dragDepth === 0) dropzone.classList.remove("dragging");
+});
 dropzone.addEventListener("drop", (event) => {
   event.preventDefault();
+  dragDepth = 0;
+  dropzone.classList.remove("dragging");
   if (event.dataTransfer.files[0]) setDataFile(event.dataTransfer.files[0]);
 });
 $("dataFile").addEventListener("change", () => {
@@ -718,10 +740,33 @@ $("dataFile").addEventListener("change", () => {
 });
 
 function setDataFile(file) {
+  const extension = file.name.split(".").pop()?.toLowerCase();
+  if (!["csv", "edf"].includes(extension)) {
+    resetDataFile();
+    showMessage("文件格式不支持，请选择 CSV 或 EDF 文件。", true);
+    return;
+  }
+  if (file.size > 200 * 1024 * 1024) {
+    resetDataFile();
+    showMessage("文件超过 200 MB 上限，请压缩或拆分后再上传。", true);
+    return;
+  }
   state.selectedFile = file;
+  $("uploadMessage").classList.add("hidden");
+  $("dropTitle").textContent = "文件已准备好";
   $("dataFileName").textContent = `${file.name} · ${(file.size / 1024 / 1024).toFixed(2)} MB`;
+  $("dropBrowse").textContent = "点击更换文件";
   dropzone.classList.add("selected");
   if (!$("jobTitle").value) $("jobTitle").value = file.name.replace(/\.[^.]+$/, "");
+}
+
+function resetDataFile() {
+  state.selectedFile = null;
+  $("dataFile").value = "";
+  $("dropTitle").textContent = "拖拽 EEG/IMU 数据到这里";
+  $("dataFileName").textContent = "支持 CSV 时间序列表格与 EDF 生理信号文件";
+  $("dropBrowse").textContent = "或点击选择本地文件";
+  dropzone.classList.remove("selected", "dragging");
 }
 
 $("uploadForm").addEventListener("submit", async (event) => {
@@ -742,10 +787,7 @@ $("uploadForm").addEventListener("submit", async (event) => {
   try {
     const data = await api("/api/jobs/upload", { method: "POST", body: form });
     showMessage(`任务已进入队列：${data.job.id}`);
-    state.selectedFile = null;
-    $("dataFile").value = "";
-    $("dataFileName").textContent = "CSV：时间序列表格；EDF：常规生理信号文件";
-    dropzone.classList.remove("selected");
+    resetDataFile();
     loadJobs();
   } catch (error) {
     showMessage(`提交失败：${error.message}`, true);

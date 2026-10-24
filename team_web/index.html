@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>NeuroTeam · 可穿戴脑电协作平台</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230d2438'/%3E%3Cpath d='M4 17h5l3-8 4 14 4-10 3 4h5' fill='none' stroke='%238dc5fa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="/assets/styles.css?v=20261024-5">
+  <link rel="stylesheet" href="/assets/styles.css?v=20261024-6">
 </head>
 <body>
   <div class="boot-overlay" id="bootOverlay" aria-hidden="true">
@@ -235,17 +235,22 @@
               <div class="file-types"><span>CSV</span><span>EDF</span><small>≤ 200 MB</small></div>
             </div>
             <form id="uploadForm">
-              <label class="field">
-                <span class="field-label">任务名称 <small>用受试者、日期和数据来源命名，便于复核</small></span>
+              <label class="field primary-field">
+                <span class="field-label"><span><b class="field-step">01</b>任务名称</span><small>用受试者、日期和数据来源命名，便于复核</small></span>
                 <input id="jobTitle" placeholder="例：Sleep-EDF SC4001 数据验收">
               </label>
-              <div class="dropzone" id="teamDropzone">
+              <div class="form-step-title"><span>02</span><strong>选择数据文件</strong><small>拖拽后自动识别文件类型</small></div>
+              <div class="dropzone" id="teamDropzone" role="button" tabindex="0" aria-label="拖拽或选择 EEG 与 IMU 数据文件">
                 <input type="file" id="dataFile" accept=".csv,.edf">
                 <span class="drop-icon" aria-hidden="true">
                   <svg viewBox="0 0 32 32"><path d="M3 17h5l3-8 5 15 4-11 3 4h6"/></svg>
                 </span>
-                <strong>选择或拖入 EEG/IMU 数据</strong>
-                <span id="dataFileName">CSV：时间序列表格；EDF：常规生理信号文件</span>
+                <div class="drop-copy">
+                  <strong id="dropTitle">拖拽 EEG/IMU 数据到这里</strong>
+                  <span id="dataFileName">支持 CSV 时间序列表格与 EDF 生理信号文件</span>
+                </div>
+                <span class="drop-browse" id="dropBrowse">或点击选择本地文件</span>
+                <span class="drop-corner">MAX 200 MB</span>
               </div>
               <div class="format-explainer">
                 <article>
@@ -257,10 +262,17 @@
                   <div><strong>生理信号格式，更适合正式研究</strong><p>保留通道、采样率和时间信息，也能携带睡眠分期标注。真实设备与公开数据集常使用这种格式。</p></div>
                 </article>
               </div>
-              <details>
-                <summary>高级设置与参数说明 <span>可选</span></summary>
-                <p class="details-intro">初次使用时保持默认即可。Research 模式使用 MNE 与 SciPy 完成更适合正式实验的滤波和重采样。</p>
-                <div class="optional-grid">
+              <details class="advanced-settings" id="advancedSettings">
+                <summary>
+                  <span class="advanced-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h7M15 18h5"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="13" cy="18" r="2"/></svg>
+                  </span>
+                  <span class="advanced-copy"><strong><b class="field-step">03</b>高级设置与参数说明</strong><small>采样率、滤波、陷波、运动阈值与睡眠标注</small></span>
+                  <span class="advanced-state"><b>可选</b><i class="advanced-chevron"></i></span>
+                </summary>
+                <div class="advanced-panel">
+                  <p class="details-intro">初次使用时保持默认即可。正式科研模式会使用 MNE 与 SciPy 完成滤波、重采样和时间对齐。</p>
+                  <div class="optional-grid">
                   <label class="field">
                     <span class="field-label">睡眠分期标注 <small>Hypnogram，需为 EDF</small></span>
                     <input type="file" id="annotationFile" accept=".edf">
@@ -292,6 +304,7 @@
                     <span class="field-label">IMU 运动阈值 <small>超过后标记头动，单位 g</small></span>
                     <input id="motionThreshold" type="number" min="0" step="0.05" value="0.25">
                   </label>
+                  </div>
                 </div>
               </details>
               <div class="button-line">
@@ -442,6 +455,6 @@
     </form>
   </dialog>
 
-  <script src="/assets/app.js?v=20261024-5"></script>
+  <script src="/assets/app.js?v=20261024-6"></script>
 </body>
 </html>

@@ -386,14 +386,33 @@ h1, h2, h3, p { margin-top: 0; }
   font-size: 9px;
   letter-spacing: .04em;
 }
+.signal-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
 .signal-legend span::before {
   content: "";
-  display: inline-block;
-  width: 14px;
-  height: 1px;
-  background: #5692c8;
-  margin-right: 6px;
-  vertical-align: middle;
+  flex: 0 0 auto;
+  display: block;
+}
+.signal-legend .legend-eeg::before {
+  width: 18px;
+  height: 2px;
+  border-radius: 2px;
+  background: #82bdf0;
+  box-shadow: 0 0 7px rgba(130, 189, 240, .22);
+}
+.signal-legend .legend-artifact::before {
+  width: 20px;
+  height: 0;
+  border-top: 2px dashed #efb65f;
+  background: transparent;
+}
+.signal-legend .legend-trace::before {
+  width: 20px;
+  height: 0;
+  border-top: 2px dotted #80d7c0;
 }
 .auth-panel {
   display: grid;

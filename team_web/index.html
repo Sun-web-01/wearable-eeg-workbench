@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>NeuroTeam · 可穿戴脑电协作平台</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230d2438'/%3E%3Cpath d='M4 17h5l3-8 4 14 4-10 3 4h5' fill='none' stroke='%238dc5fa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="/assets/styles.css?v=20261025-1">
+  <link rel="stylesheet" href="/assets/styles.css?v=20261025-2">
 </head>
 <body>
   <div class="boot-overlay" id="bootOverlay" aria-hidden="true">
@@ -84,7 +84,11 @@
             <circle cx="152" cy="61" r="4"/><circle cx="568" cy="61" r="4"/>
           </g>
         </svg>
-        <div class="signal-legend"><span>EEG 脑电</span><span>异常片段</span><span>可追溯处理</span></div>
+        <div class="signal-legend">
+          <span class="legend-eeg">EEG 脑电</span>
+          <span class="legend-artifact">异常片段</span>
+          <span class="legend-trace">可追溯处理</span>
+        </div>
       </div>
     </div>
 
@@ -485,6 +489,6 @@
     </div>
   </dialog>
 
-  <script src="/assets/app.js?v=20261025-1"></script>
+  <script src="/assets/app.js?v=20261025-2"></script>
 </body>
 </html>

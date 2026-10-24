@@ -51,7 +51,6 @@ function showApp(user) {
   $("authShell").classList.add("hidden");
   $("appShell").classList.remove("hidden");
   $("currentUser").textContent = user.username;
-  $("currentRole").textContent = user.role === "admin" ? "团队管理员" : "团队成员";
   $("avatar").textContent = user.username.slice(0, 1).toUpperCase();
   setView("jobs");
   loadJobs();

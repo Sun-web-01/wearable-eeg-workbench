@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>NeuroTeam · 可穿戴脑电协作平台</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230d2438'/%3E%3Cpath d='M4 17h5l3-8 4 14 4-10 3 4h5' fill='none' stroke='%238dc5fa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="/assets/styles.css?v=20261024-2">
+  <link rel="stylesheet" href="/assets/styles.css?v=20261024-3">
 </head>
 <body>
   <section class="auth-shell" id="authShell">
@@ -71,13 +71,13 @@
               <input id="password" type="password" autocomplete="current-password" minlength="8" placeholder="输入登录密码" required>
             </label>
             <label class="field register-only hidden">
-              <span class="field-label">团队邀请码 <small>由团队管理员私下提供</small></span>
+              <span class="field-label">团队邀请码 <small>由团队私下提供</small></span>
               <input id="inviteCode" autocomplete="off" placeholder="输入邀请码">
             </label>
             <div class="auth-error hidden" id="authError" role="alert"></div>
             <button class="primary wide" id="authSubmit" type="submit">登录平台</button>
           </form>
-          <p class="auth-note">首次注册的成员将成为管理员。请勿在公共群聊中转发邀请码或账户密码。</p>
+          <p class="auth-note">账户仅用于团队内部数据协作。请勿在公共群聊中转发邀请码或账户密码。</p>
         </div>
         <p class="auth-footer">用于科研数据协作与质量复核，不提供医疗诊断结论。</p>
       </div>
@@ -110,9 +110,12 @@
       </nav>
 
       <div class="side-insight">
-        <span class="eyebrow">当前工作区</span>
-        <strong>EEG + IMU</strong>
-        <p>脑电用于状态特征，运动数据用于伪迹门控；先保证质量，再进入模型。</p>
+        <span class="eyebrow">信号链路</span>
+        <strong>EEG / IMU</strong>
+        <p>从原始信号到质量报告，每一步都保留参数与上下文。</p>
+        <div class="stack-chain" aria-label="数据处理链路">
+          <span>EEG</span><i>→</i><span>QUALITY</span><i>→</i><span>FEATURE</span>
+        </div>
       </div>
 
       <div class="side-foot">
@@ -132,7 +135,7 @@
           <div class="sync-status"><i></i><span>自动同步</span></div>
           <div class="header-user">
             <div class="avatar" id="avatar">R</div>
-            <div><strong id="currentUser">—</strong><small id="currentRole">团队成员</small></div>
+            <div><strong id="currentUser">—</strong><small>安全会话</small></div>
             <button class="ghost small" id="logoutBtn">退出</button>
           </div>
         </div>
@@ -241,9 +244,12 @@
               <div><strong>EEG</strong><span>脑电信号</span><small>反映大脑电活动与节律</small></div>
               <div><strong>IMU</strong><span>运动信号</span><small>帮助识别头动和伪迹</small></div>
             </div>
+            <div class="tech-signature" aria-label="分析技术">
+              <span>MNE</span><span>SciPy</span><span>FFT</span><span>IMU GATE</span>
+            </div>
             <div class="scope-box">
-              <strong>团队协作</strong>
-              <p>我主要负责数据与信号处理，也会参与模型联调和结果讨论；模型、系统、实时展示和材料由大家一起推进。</p>
+              <strong>信号链路说明</strong>
+              <p>EEG 用于提取状态相关特征，IMU 用于判断头部运动并参与伪迹门控，处理结果统一进入可追溯报告。</p>
             </div>
           </aside>
         </section>
@@ -312,6 +318,6 @@
     <div id="dialogContent" class="dialog-content"></div>
   </dialog>
 
-  <script src="/assets/app.js?v=20261024-2"></script>
+  <script src="/assets/app.js?v=20261024-3"></script>
 </body>
 </html>

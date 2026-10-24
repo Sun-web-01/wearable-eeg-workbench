@@ -142,6 +142,29 @@ document.addEventListener("pointerdown", (event) => {
   if (!event.target.closest(".custom-select")) closeAllCustomSelects();
 });
 
+function applyTheme(theme, persist = true) {
+  const normalised = theme === "dark" ? "dark" : "light";
+  const dark = normalised === "dark";
+  document.documentElement.dataset.theme = normalised;
+  const button = $("themeToggle");
+  if (!button) return;
+  button.setAttribute("aria-pressed", String(dark));
+  button.setAttribute("aria-label", dark ? "切换到浅色模式" : "切换到深色模式");
+  button.title = dark ? "切换到浅色模式" : "切换到深色模式";
+  $("themeLabel").textContent = dark ? "浅色模式" : "深色模式";
+  if (persist) {
+    try {
+      localStorage.setItem("neuroteam:theme", normalised);
+    } catch {
+      // Theme still applies for the current page.
+    }
+  }
+}
+
+function toggleTheme() {
+  applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
+}
+
 function runBootSequence() {
   const overlay = $("bootOverlay");
   if (!overlay) return;
@@ -1269,6 +1292,8 @@ document.querySelectorAll(".nav-item").forEach((button) => {
   button.addEventListener("click", () => setView(button.dataset.view));
 });
 
+$("themeToggle").addEventListener("click", toggleTheme);
+
 document.querySelectorAll("[data-trust-view]").forEach((button) => {
   button.addEventListener("click", () => void openTrustDialog(button.dataset.trustView));
 });
@@ -1600,6 +1625,7 @@ $("jobDialog").addEventListener("click", (event) => {
 });
 
 async function boot() {
+  applyTheme(document.documentElement.dataset.theme || "light", false);
   initializeCustomSelects();
   resetValidationPanel();
   state.autoSync = readAutoSyncPreference();

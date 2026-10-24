@@ -84,6 +84,7 @@ class AcquisitionPayload(BaseModel):
     subject_id: str = Field(default="S01", min_length=1, max_length=32)
     task: str = Field(default="rest", min_length=1, max_length=32)
     duration_sec: int = Field(default=30, ge=3, le=3600)
+    simulation_ack: bool = False
 
 
 class DemoPayload(BaseModel):
@@ -411,6 +412,7 @@ def start_acquisition(
             subject_id=payload.subject_id,
             task=payload.task,
             duration_sec=payload.duration_sec,
+            simulation_ack=payload.simulation_ack,
             user=user,
         )
     except ValueError as exc:

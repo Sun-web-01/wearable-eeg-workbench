@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>NeuroTeam · 可穿戴脑电协作平台</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230d2438'/%3E%3Cpath d='M4 17h5l3-8 4 14 4-10 3 4h5' fill='none' stroke='%238dc5fa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="/assets/styles.css?v=20261025-4">
+  <link rel="stylesheet" href="/assets/styles.css?v=20261025-7">
 </head>
 <body>
   <div class="boot-overlay" id="bootOverlay" aria-hidden="true">
@@ -411,7 +411,9 @@
               <div class="acquisition-grid">
                 <label class="field">
                   <span class="field-label">设备类型 <small>按实际硬件选择</small></span>
-                  <select id="deviceProfile"></select>
+                  <select id="deviceProfile">
+                    <option value="">请选择设备类型</option>
+                  </select>
                 </label>
                 <label class="field">
                   <span class="field-label">设备地址 <small id="deviceAddressHint">模拟设备无需填写</small></span>
@@ -438,13 +440,17 @@
                 </label>
               </div>
               <div class="device-profile-info" id="deviceProfileInfo">正在读取设备能力…</div>
+              <label class="simulation-consent hidden" id="simulationConsentWrap">
+                <input type="checkbox" id="simulationConsent">
+                <span><strong>我确认这是模拟数据</strong><small>勾选后才允许启动；模拟信号不代表真实设备、真实受试者或真实脑状态。</small></span>
+              </label>
               <div class="file-name-preview">
                 <span>预计文件命名</span>
-                <code id="fileNamePreview">sub-S01_task-rest_acq-synthetic_日期时间.csv</code>
+                <code id="fileNamePreview">请先选择设备类型</code>
                 <small>同时保存 EEG 专用 EDF 和包含设备、通道、哈希值的 JSON 清单。</small>
               </div>
               <div class="button-line device-actions">
-                <button class="primary" id="startAcquisitionBtn" type="submit">开始采集</button>
+                <button class="primary" id="startAcquisitionBtn" type="submit" disabled>开始采集</button>
                 <button class="secondary hidden" id="stopAcquisitionBtn" type="button">停止并保存</button>
               </div>
               <div class="form-message hidden" id="acquisitionMessage" role="status" aria-live="polite"></div>
@@ -594,6 +600,6 @@
     </div>
   </dialog>
 
-  <script src="/assets/app.js?v=20261025-4"></script>
+  <script src="/assets/app.js?v=20261025-7"></script>
 </body>
 </html>

@@ -839,19 +839,40 @@ function updateAcquisitionFileName() {
   const profile = selectedDeviceProfile();
   const subject = ($("acquisitionSubject").value || "S01").replace(/[^A-Za-z0-9_-]/g, "").toLowerCase() || "s01";
   const task = $("acquisitionTask").value || "other";
-  const device = profile?.id || "device";
-  $("fileNamePreview").textContent = `sub-${subject}_task-${task}_acq-${device}_YYYYMMDD-HHMMSS.csv`;
+  $("fileNamePreview").textContent = profile
+    ? `sub-${subject}_task-${task}_acq-${profile.id}_YYYYMMDD-HHMMSS.csv`
+    : "选择设备后生成标准文件名";
+}
+
+function updateStartAvailability() {
+  const profile = selectedDeviceProfile();
+  const needsSimulationAck = profile?.id === "synthetic" && !$("simulationConsent").checked;
+  $("startAcquisitionBtn").disabled = !profile || needsSimulationAck || Boolean(state.activeAcquisitionId);
 }
 
 function renderDeviceProfile() {
   const profile = selectedDeviceProfile();
-  if (!profile) return;
+  if (!profile) {
+    $("deviceAddress").disabled = true;
+    $("deviceAddress").placeholder = "请先选择设备类型";
+    $("deviceAddressHint").textContent = "选择设备后填写";
+    $("deviceProfileInfo").textContent = "请选择上方设备类型，或先扫描已开启的蓝牙/串口设备。";
+    $("simulationConsentWrap").classList.add("hidden");
+    $("simulationConsent").checked = false;
+    updateAcquisitionFileName();
+    updateStartAvailability();
+    return;
+  }
   const addressInput = $("deviceAddress");
   addressInput.disabled = !profile.address_field;
   addressInput.placeholder = profile.address_field ? profile.address_label : "模拟设备无需填写";
   $("deviceAddressHint").textContent = profile.address_field ? profile.address_label : "模拟设备无需填写";
-  $("deviceProfileInfo").innerHTML = `<b>${escapeHtml(profile.label)}</b> · ${escapeHtml(profile.transport)} · ${profile.sample_rate_hz ?? "—"} Hz · EEG ${profile.eeg_channel_count} 通道 · IMU ${profile.imu_channel_count} 通道<br><span>${escapeHtml(profile.description)}</span>`;
+  const simulated = profile.id === "synthetic";
+  $("deviceProfileInfo").innerHTML = `<b>${escapeHtml(profile.label)}</b>${simulated ? " · <strong>模拟数据，不是真实设备</strong>" : ""} · ${escapeHtml(profile.transport)} · ${profile.sample_rate_hz ?? "—"} Hz · EEG ${profile.eeg_channel_count} 通道 · IMU ${profile.imu_channel_count} 通道<br><span>${escapeHtml(profile.description)}</span>`;
+  $("simulationConsentWrap").classList.toggle("hidden", !simulated);
+  if (!simulated) $("simulationConsent").checked = false;
   updateAcquisitionFileName();
+  updateStartAvailability();
 }
 
 function renderScanResults(data) {
@@ -886,8 +907,12 @@ async function loadDeviceProfiles() {
     state.deviceProfiles = data.profiles || [];
     const select = $("deviceProfile");
     const previous = select.value;
-    select.innerHTML = state.deviceProfiles.map((profile) =>
-      `<option value="${escapeHtml(profile.id)}">${escapeHtml(profile.label)} · ${escapeHtml(profile.transport)}</option>`
+    const orderedProfiles = [
+      ...state.deviceProfiles.filter((profile) => profile.id !== "synthetic"),
+      ...state.deviceProfiles.filter((profile) => profile.id === "synthetic"),
+    ];
+    select.innerHTML = '<option value="">请选择设备类型</option>' + orderedProfiles.map((profile) =>
+      `<option value="${escapeHtml(profile.id)}">${escapeHtml(profile.label)} · ${escapeHtml(profile.transport)}${profile.id === "synthetic" ? " · 仅测试" : ""}</option>`
     ).join("");
     if (state.deviceProfiles.some((profile) => profile.id === previous)) select.value = previous;
     renderDeviceProfile();
@@ -935,6 +960,7 @@ function renderAcquisition(session) {
   $("startAcquisitionBtn").disabled = active;
   $("stopAcquisitionBtn").classList.toggle("hidden", !["starting", "connecting", "recording"].includes(session.status));
   state.activeAcquisitionId = active ? session.id : null;
+  updateStartAvailability();
 }
 
 async function pollAcquisition() {
@@ -965,6 +991,12 @@ async function startAcquisition(event) {
   event.preventDefault();
   const profile = selectedDeviceProfile();
   if (!profile) return;
+  if (profile.id === "synthetic" && !$("simulationConsent").checked) {
+    $("acquisitionMessage").textContent = "请先勾选“我确认这是模拟数据”，再启动模拟采集。";
+    $("acquisitionMessage").classList.remove("hidden");
+    $("acquisitionMessage").classList.add("error");
+    return;
+  }
   const button = $("startAcquisitionBtn");
   const original = button.textContent;
   button.disabled = true;
@@ -981,6 +1013,7 @@ async function startAcquisition(event) {
         subject_id: $("acquisitionSubject").value.trim(),
         task: $("acquisitionTask").value,
         duration_sec: Number($("acquisitionDuration").value),
+        simulation_ack: profile.id === "synthetic" ? $("simulationConsent").checked : false,
       }),
     });
     watchAcquisition(data.session);
@@ -1034,6 +1067,7 @@ async function loadAcquisitions() {
       return;
     }
     $("acquisitionBody").innerHTML = data.sessions.map((session) => {
+      const simulated = session.simulated ?? session.profile_id === "synthetic";
       const files = session.status === "completed" ? `
         <div class="file-links">
           <a href="/api/acquisitions/${session.id}/download/csv" download="${escapeHtml(session.csv_name || "")}">CSV</a>
@@ -1046,7 +1080,11 @@ async function loadAcquisitions() {
           ? `<button class="link-button" data-open-acquisition-job="${escapeHtml(session.analysis_job_id)}">查看分析</button>`
           : `<button class="link-button" data-analyze-acquisition="${escapeHtml(session.id)}">提交分析</button>`;
       return `<tr>
-        <td><span class="task-name">${escapeHtml(session.csv_name || session.id)}</span><span class="subline">${escapeHtml(session.id)}</span></td>
+        <td>
+          <span class="task-name">${escapeHtml(session.csv_name || session.id)}</span>
+          <span class="subline">${escapeHtml(session.id)}</span>
+          ${simulated ? '<span class="badge simulated">模拟数据</span>' : ""}
+        </td>
         <td>${escapeHtml(session.subject_id)} · ${escapeHtml(acquisitionTaskLabels[session.task] || session.task)}</td>
         <td>${escapeHtml(session.profile_label)}</td>
         <td>${Number(session.captured_seconds || 0).toFixed(1)} s</td>
@@ -1116,6 +1154,7 @@ $("trustDialog").addEventListener("click", (event) => {
 });
 
 $("deviceProfile").addEventListener("change", renderDeviceProfile);
+$("simulationConsent").addEventListener("change", updateStartAvailability);
 $("acquisitionSubject").addEventListener("input", updateAcquisitionFileName);
 $("acquisitionTask").addEventListener("change", updateAcquisitionFileName);
 $("deviceScanBtn").addEventListener("click", () => void scanDevices());

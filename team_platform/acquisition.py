@@ -203,7 +203,7 @@ class AcquisitionManager:
             "imu_channel_count", "samples", "subject_id", "task", "profile_id",
             "profile_label", "transport", "address", "owner_name", "csv_name",
             "edf_name", "manifest_name", "csv_sha256", "error", "warnings",
-            "analysis_job_id",
+            "analysis_job_id", "simulated",
         }
         return {key: session.get(key) for key in fields}
 
@@ -215,11 +215,14 @@ class AcquisitionManager:
         subject_id: str,
         task: str,
         duration_sec: int,
+        simulation_ack: bool,
         user: dict[str, Any],
     ) -> dict[str, Any]:
         profile = PROFILES.get(profile_id)
         if not profile:
             raise ValueError("不支持的设备类型。")
+        if profile_id == "synthetic" and not simulation_ack:
+            raise ValueError("使用模拟设备前必须明确确认：生成数据不代表真实设备或真实受试者。")
         if profile_id != "synthetic" and not address.strip():
             raise ValueError(f"请输入{profile['address_label']}。")
         subject = _safe_slug(subject_id, "S01")
@@ -251,6 +254,7 @@ class AcquisitionManager:
                 "profile_id": profile_id,
                 "profile_label": profile["label"],
                 "transport": profile["transport"],
+                "simulated": profile_id == "synthetic",
                 "address": address.strip(),
                 "owner_id": int(user["id"]),
                 "owner_name": user["username"],

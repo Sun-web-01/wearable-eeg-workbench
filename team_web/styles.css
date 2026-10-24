@@ -1434,6 +1434,12 @@ td.empty { padding: 34px; color: var(--muted); text-align: center; }
 }
 .badge.failed, .badge.D { color: var(--red); background: var(--red-soft); }
 .badge.B, .badge.C { color: var(--blue-dark); background: var(--blue-soft); }
+.badge.simulated {
+  margin-top: 5px;
+  color: #8b6328;
+  border: 1px solid #ead7b8;
+  background: #fff8ed;
+}
 .link-button { border: 0; padding: 5px; color: var(--blue); background: transparent; font-size: 9px; font-weight: 650; }
 
 /* Inner pages */
@@ -1597,6 +1603,28 @@ td.empty { padding: 34px; color: var(--muted); text-align: center; }
   line-height: 1.7;
 }
 .device-profile-info b { color: var(--ink); }
+.simulation-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-top: 9px;
+  padding: 10px 11px;
+  border: 1px solid #ead8b9;
+  border-radius: 8px;
+  color: #765a33;
+  background: #fffaf1;
+  cursor: pointer;
+}
+.simulation-consent input {
+  width: 15px;
+  height: 15px;
+  margin: 1px 0 0;
+  flex: 0 0 15px;
+  accent-color: #b77a2d;
+}
+.simulation-consent span, .simulation-consent strong, .simulation-consent small { display: block; }
+.simulation-consent strong { font-size: 9px; }
+.simulation-consent small { margin-top: 3px; color: #917a59; font-size: 8px; line-height: 1.55; }
 .file-name-preview {
   margin-top: 10px;
   padding: 12px;

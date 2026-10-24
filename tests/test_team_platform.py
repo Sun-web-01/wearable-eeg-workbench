@@ -120,6 +120,19 @@ class TeamPlatformTests(unittest.TestCase):
         self.assertEqual(profiles.status_code, 200)
         self.assertIn("synthetic", [item["id"] for item in profiles.json()["profiles"]])
 
+        unconfirmed = self.client.post(
+            "/api/acquisitions",
+            json={
+                "profile_id": "synthetic",
+                "address": "",
+                "subject_id": "S99",
+                "task": "rest",
+                "duration_sec": 3,
+                "simulation_ack": False,
+            },
+        )
+        self.assertEqual(unconfirmed.status_code, 400)
+
         response = self.client.post(
             "/api/acquisitions",
             json={
@@ -128,6 +141,7 @@ class TeamPlatformTests(unittest.TestCase):
                 "subject_id": "S99",
                 "task": "rest",
                 "duration_sec": 3,
+                "simulation_ack": True,
             },
         )
         self.assertEqual(response.status_code, 200, response.text)

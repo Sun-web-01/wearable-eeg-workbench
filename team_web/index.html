@@ -13,7 +13,7 @@
     }
   </script>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230d2438'/%3E%3Cpath d='M4 17h5l3-8 4 14 4-10 3 4h5' fill='none' stroke='%238dc5fa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="/assets/styles.css?v=20261025-11">
+  <link rel="stylesheet" href="/assets/styles.css?v=20261025-14">
 </head>
 <body>
   <div class="boot-overlay" id="bootOverlay" aria-hidden="true">
@@ -386,7 +386,14 @@
         <section class="panel jobs-panel">
           <div class="panel-heading">
             <div><span class="eyebrow">共享记录</span><h2>团队任务</h2><p>所有成员共享查看，方便核对参数、结果和提交者。</p></div>
-            <button class="ghost" id="refreshBtn">刷新任务</button>
+            <div class="record-toolbar">
+              <div class="selection-summary">
+                <span id="jobsSelectionCount">未选择任务</span>
+                <button class="text-action" id="clearJobSelection" type="button" disabled>清除</button>
+              </div>
+              <button class="danger-button compact" id="deleteSelectedJobs" type="button" disabled>删除所选</button>
+              <button class="ghost compact" id="refreshBtn">刷新任务</button>
+            </div>
           </div>
           <div class="quality-legend" aria-label="数据质量等级说明">
             <span><b class="grade-a">A</b><em>信号稳定</em></span>
@@ -394,10 +401,14 @@
             <span><b class="grade-c">C</b><em>质量偏低</em></span>
             <span><b class="grade-d">D</b><em>需要重新处理</em></span>
           </div>
+          <div class="selection-guide">
+            <strong>批量清理</strong>
+            <span>勾选单条任务即可删除；按住 <kbd>Shift</kbd> 再勾选另一条，可选中两条之间的全部任务。</span>
+          </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>任务</th><th>提交者</th><th>数据文件</th><th>处理模式</th><th>状态</th><th>质量</th><th>创建时间</th><th></th></tr></thead>
-              <tbody id="jobsBody"><tr><td colspan="8" class="empty">正在读取任务…</td></tr></tbody>
+              <thead><tr><th class="select-cell"><input class="record-check" id="jobsSelectAll" type="checkbox" aria-label="选择全部可删除任务"></th><th>任务</th><th>提交者</th><th>数据文件</th><th>处理模式</th><th>状态</th><th>质量</th><th>创建时间</th><th></th></tr></thead>
+              <tbody id="jobsBody"><tr><td colspan="9" class="empty">正在读取任务…</td></tr></tbody>
             </table>
           </div>
         </section>
@@ -496,12 +507,23 @@
         <section class="panel acquisition-history">
           <div class="panel-heading">
             <div><span class="eyebrow">采集记录</span><h2>最近采集</h2><p>记录保存在团队主机；完成后可直接下载或送入分析队列。</p></div>
-            <button class="ghost" id="refreshAcquisitionsBtn" type="button">刷新记录</button>
+            <div class="record-toolbar">
+              <div class="selection-summary">
+                <span id="acquisitionsSelectionCount">未选择采集</span>
+                <button class="text-action" id="clearAcquisitionSelection" type="button" disabled>清除</button>
+              </div>
+              <button class="danger-button compact" id="deleteSelectedAcquisitions" type="button" disabled>删除所选</button>
+              <button class="ghost compact" id="refreshAcquisitionsBtn" type="button">刷新记录</button>
+            </div>
+          </div>
+          <div class="selection-guide">
+            <strong>批量清理</strong>
+            <span>勾选单条记录即可删除；按住 <kbd>Shift</kbd> 再勾选另一条，可连续选择两条之间的记录。采集中的会话暂时不可删除。</span>
           </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>文件任务</th><th>受试者</th><th>设备</th><th>时长</th><th>状态</th><th>创建时间</th><th>文件</th><th>分析</th></tr></thead>
-              <tbody id="acquisitionBody"><tr><td colspan="8" class="empty">正在读取采集记录…</td></tr></tbody>
+              <thead><tr><th class="select-cell"><input class="record-check" id="acquisitionsSelectAll" type="checkbox" aria-label="选择全部可删除采集记录"></th><th>文件任务</th><th>受试者</th><th>设备</th><th>时长</th><th>状态</th><th>创建时间</th><th>文件</th><th>分析</th><th></th></tr></thead>
+              <tbody id="acquisitionBody"><tr><td colspan="10" class="empty">正在读取采集记录…</td></tr></tbody>
             </table>
           </div>
         </section>
@@ -615,6 +637,28 @@
     </div>
   </dialog>
 
-  <script src="/assets/app.js?v=20261025-11"></script>
+  <dialog id="deleteDialog" class="delete-dialog">
+    <div class="dialog-head delete-dialog-head">
+      <div><span class="eyebrow">不可撤销操作</span><h2>确认删除所选记录？</h2></div>
+      <button class="icon-button" id="closeDeleteDialog" aria-label="关闭删除确认">×</button>
+    </div>
+    <div class="dialog-content delete-dialog-content">
+      <div class="delete-warning">
+        <span class="delete-warning-mark">!</span>
+        <div>
+          <strong id="deleteSummary">即将删除记录</strong>
+          <p id="deleteExplanation">数据库记录、原始文件和处理结果会一起清理，删除后无法恢复。</p>
+        </div>
+      </div>
+      <div class="delete-preview" id="deletePreview"></div>
+      <div class="form-message hidden" id="deleteMessage" role="status" aria-live="polite"></div>
+      <div class="delete-dialog-actions">
+        <button class="secondary" id="cancelDeleteDialog" type="button">保留记录</button>
+        <button class="danger-button" id="confirmDeleteBtn" type="button">确认删除</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script src="/assets/app.js?v=20261025-14"></script>
 </body>
 </html>

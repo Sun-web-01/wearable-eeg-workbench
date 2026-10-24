@@ -12,8 +12,15 @@ const state = {
   trustMode: "trace",
   trustJobId: null,
   deviceProfiles: [],
+  acquisitionRecords: [],
   activeAcquisitionId: null,
   acquisitionPollTimer: null,
+  jobSelection: new Set(),
+  jobSelectionAnchor: null,
+  acquisitionSelection: new Set(),
+  acquisitionSelectionAnchor: null,
+  deleteRequest: null,
+  jobDialogId: null,
 };
 
 function closeAllCustomSelects(except = null) {
@@ -381,20 +388,100 @@ function animateMetric(id, value) {
   requestAnimationFrame(draw);
 }
 
+function isJobDeletable(job) {
+  return !["queued", "processing"].includes(job.status);
+}
+
+function isAcquisitionDeletable(session) {
+  return !["starting", "connecting", "recording", "stopping"].includes(session.status);
+}
+
+function applyRangeSelection(selection, orderedIds, itemId, shiftKey, anchorId, shouldSelect) {
+  const anchorIndex = orderedIds.indexOf(anchorId);
+  const itemIndex = orderedIds.indexOf(itemId);
+  if (shiftKey && anchorIndex >= 0 && itemIndex >= 0) {
+    const start = Math.min(anchorIndex, itemIndex);
+    const end = Math.max(anchorIndex, itemIndex);
+    orderedIds.slice(start, end + 1).forEach((id) => {
+      if (shouldSelect) selection.add(id);
+      else selection.delete(id);
+    });
+    return anchorId;
+  }
+  if (shouldSelect) selection.add(itemId);
+  else selection.delete(itemId);
+  return itemId;
+}
+
+function pruneSelection(selection, eligibleIds) {
+  const allowed = new Set(eligibleIds);
+  Array.from(selection).forEach((id) => {
+    if (!allowed.has(id)) selection.delete(id);
+  });
+}
+
+function syncJobSelection() {
+  const eligible = state.jobs.filter(isJobDeletable);
+  const eligibleIds = new Set(eligible.map((job) => job.id));
+  pruneSelection(state.jobSelection, eligibleIds);
+  if (!eligibleIds.has(state.jobSelectionAnchor)) state.jobSelectionAnchor = null;
+  document.querySelectorAll("[data-job-check]").forEach((checkbox) => {
+    const checked = state.jobSelection.has(checkbox.dataset.jobCheck);
+    checkbox.checked = checked;
+    checkbox.closest("tr")?.classList.toggle("selected-row", checked);
+  });
+  const count = state.jobSelection.size;
+  const selectedAll = eligible.length > 0 && count === eligible.length;
+  const selectAll = $("jobsSelectAll");
+  selectAll.disabled = eligible.length === 0;
+  selectAll.checked = selectedAll;
+  selectAll.indeterminate = count > 0 && !selectedAll;
+  $("jobsSelectionCount").textContent = count ? `已选 ${count} 条任务` : "未选择任务";
+  $("clearJobSelection").disabled = count === 0;
+  $("deleteSelectedJobs").disabled = count === 0;
+}
+
+function syncAcquisitionSelection() {
+  const eligible = state.acquisitionRecords.filter(isAcquisitionDeletable);
+  const eligibleIds = new Set(eligible.map((session) => session.id));
+  pruneSelection(state.acquisitionSelection, eligibleIds);
+  if (!eligibleIds.has(state.acquisitionSelectionAnchor)) state.acquisitionSelectionAnchor = null;
+  document.querySelectorAll("[data-acquisition-check]").forEach((checkbox) => {
+    const checked = state.acquisitionSelection.has(checkbox.dataset.acquisitionCheck);
+    checkbox.checked = checked;
+    checkbox.closest("tr")?.classList.toggle("selected-row", checked);
+  });
+  const count = state.acquisitionSelection.size;
+  const selectedAll = eligible.length > 0 && count === eligible.length;
+  const selectAll = $("acquisitionsSelectAll");
+  selectAll.disabled = eligible.length === 0;
+  selectAll.checked = selectedAll;
+  selectAll.indeterminate = count > 0 && !selectedAll;
+  $("acquisitionsSelectionCount").textContent = count ? `已选 ${count} 条采集` : "未选择采集";
+  $("clearAcquisitionSelection").disabled = count === 0;
+  $("deleteSelectedAcquisitions").disabled = count === 0;
+}
+
 function renderJobs(data) {
   state.jobs = data.jobs;
+  pruneSelection(state.jobSelection, data.jobs.filter(isJobDeletable).map((job) => job.id));
   animateMetric("statTotal", data.stats.total);
   animateMetric("statCompleted", data.stats.completed);
   animateMetric("statProcessing", data.stats.processing);
   animateMetric("statFailed", data.stats.failed);
 
   if (!data.jobs.length) {
-    $("jobsBody").innerHTML = '<tr><td colspan="8" class="empty">还没有任务。上传数据或创建一个演示任务。</td></tr>';
+    $("jobsBody").innerHTML = '<tr><td colspan="9" class="empty">还没有任务。上传数据或创建一个演示任务。</td></tr>';
+    syncJobSelection();
     return;
   }
 
-  $("jobsBody").innerHTML = data.jobs.map((job) => `
-    <tr>
+  $("jobsBody").innerHTML = data.jobs.map((job) => {
+    const deletable = isJobDeletable(job);
+    return `
+    <tr data-job-row="${escapeHtml(job.id)}">
+      <td class="select-cell"><input class="record-check" type="checkbox" data-job-check="${escapeHtml(job.id)}"
+        aria-label="选择任务 ${escapeHtml(job.title)}" ${deletable ? "" : 'disabled title="任务处理中，暂不可删除"'}></td>
       <td>
         <span class="task-name">${escapeHtml(job.title)}</span>
         <span class="subline">${escapeHtml(job.input_name || "系统演示数据")}</span>
@@ -407,12 +494,35 @@ function renderJobs(data) {
         ? `<span class="badge ${job.quality_grade}" title="${qualityLabel(job.quality_grade)}">${job.quality_grade} · ${Number(job.quality_score).toFixed(1)}</span>`
         : "—"}</td>
       <td>${formatTime(job.created_at)}</td>
-      <td><button class="link-button" data-job-id="${job.id}">详情</button></td>
-    </tr>`).join("");
+      <td><div class="row-actions">
+        <button class="link-button" data-job-id="${escapeHtml(job.id)}">详情</button>
+        <button class="link-button destructive" data-delete-job="${escapeHtml(job.id)}" ${deletable ? "" : "disabled"}>删除</button>
+      </div></td>
+    </tr>`;
+  }).join("");
 
   document.querySelectorAll("[data-job-id]").forEach((button) => {
     button.addEventListener("click", () => openJob(button.dataset.jobId));
   });
+  document.querySelectorAll("[data-job-check]").forEach((checkbox) => {
+    checkbox.addEventListener("click", (event) => {
+      if (checkbox.disabled) return;
+      const orderedIds = state.jobs.filter(isJobDeletable).map((job) => job.id);
+      state.jobSelectionAnchor = applyRangeSelection(
+        state.jobSelection,
+        orderedIds,
+        checkbox.dataset.jobCheck,
+        event.shiftKey,
+        state.jobSelectionAnchor,
+        checkbox.checked,
+      );
+      syncJobSelection();
+    });
+  });
+  document.querySelectorAll("[data-delete-job]").forEach((button) => {
+    button.addEventListener("click", () => requestRecordDeletion("jobs", [button.dataset.deleteJob]));
+  });
+  syncJobSelection();
 }
 
 async function loadJobs() {
@@ -494,6 +604,7 @@ function downloadFileName(job, label, extension) {
 
 async function openJob(jobId) {
   const dialog = $("jobDialog");
+  state.jobDialogId = jobId;
   $("dialogTitle").textContent = "正在读取任务…";
   $("dialogContent").innerHTML = "";
   dialog.showModal();
@@ -685,7 +796,20 @@ async function openJob(jobId) {
         <div class="detail-timeline">
           ${data.events.map((event, index) => `<div><i>${String(index + 1).padStart(2, "0")}</i><p>${escapeHtml(event.message)}<time>${formatDateTime(event.created_at)}</time></p></div>`).join("")}
         </div>
+      </section>
+
+      <section class="detail-card detail-danger-zone">
+        <div>
+          <span class="eyebrow">记录清理</span>
+          <h3>删除这个任务</h3>
+          <p>会同时删除数据库记录、上传的原始文件以及本次生成的报告和特征文件。该操作不可撤销。</p>
+          ${isJobDeletable(job) ? "" : '<small class="danger-hint">任务仍在排队或处理中，完成后才能删除。</small>'}
+        </div>
+        <button class="danger-button compact" type="button" data-delete-job-detail="${escapeHtml(job.id)}"
+          ${isJobDeletable(job) ? "" : "disabled"}>删除此任务</button>
       </section>`;
+    const detailDeleteButton = $("dialogContent").querySelector("[data-delete-job-detail]");
+    detailDeleteButton?.addEventListener("click", () => requestRecordDeletion("jobs", [job.id]));
   } catch (error) {
     $("dialogTitle").textContent = "任务读取失败";
     $("dialogContent").innerHTML = `<div class="auth-error">${escapeHtml(error.message)}</div>`;
@@ -1215,12 +1339,19 @@ async function analyzeAcquisition(sessionId) {
 async function loadAcquisitions() {
   try {
     const data = await api("/api/acquisitions");
+    state.acquisitionRecords = data.sessions;
+    pruneSelection(
+      state.acquisitionSelection,
+      data.sessions.filter(isAcquisitionDeletable).map((session) => session.id),
+    );
     if (!data.sessions.length) {
-      $("acquisitionBody").innerHTML = '<tr><td colspan="8" class="empty">还没有采集记录。连接设备或使用模拟设备开始第一次采集。</td></tr>';
+      $("acquisitionBody").innerHTML = '<tr><td colspan="10" class="empty">还没有采集记录。连接设备或使用模拟设备开始第一次采集。</td></tr>';
+      syncAcquisitionSelection();
       return;
     }
     $("acquisitionBody").innerHTML = data.sessions.map((session) => {
       const simulated = session.simulated ?? session.profile_id === "synthetic";
+      const deletable = isAcquisitionDeletable(session);
       const files = session.status === "completed" ? `
         <div class="file-links">
           <a href="/api/acquisitions/${session.id}/download/csv" download="${escapeHtml(session.csv_name || "")}">CSV</a>
@@ -1232,7 +1363,10 @@ async function loadAcquisitions() {
         : session.analysis_job_id
           ? `<button class="link-button" data-open-acquisition-job="${escapeHtml(session.analysis_job_id)}">查看分析</button>`
           : `<button class="link-button" data-analyze-acquisition="${escapeHtml(session.id)}">提交分析</button>`;
-      return `<tr>
+      return `<tr data-acquisition-row="${escapeHtml(session.id)}">
+        <td class="select-cell"><input class="record-check" type="checkbox" data-acquisition-check="${escapeHtml(session.id)}"
+          aria-label="选择采集记录 ${escapeHtml(session.csv_name || session.id)}"
+          ${deletable ? "" : 'disabled title="采集仍在进行，暂不可删除"'}></td>
         <td>
           <span class="task-name">${escapeHtml(session.csv_name || session.id)}</span>
           <span class="subline">${escapeHtml(session.id)}</span>
@@ -1244,7 +1378,11 @@ async function loadAcquisitions() {
         <td><span class="badge ${escapeHtml(session.status)}">${statusLabel(session.status)}</span></td>
         <td>${formatTime(session.created_at)}</td>
         <td>${files}</td>
-        <td>${analysis}</td>
+        <td><div class="row-actions">
+          ${analysis}
+          <button class="link-button destructive" data-delete-acquisition="${escapeHtml(session.id)}"
+            ${deletable ? "" : "disabled"}>删除</button>
+        </div></td>
       </tr>`;
     }).join("");
     document.querySelectorAll("[data-analyze-acquisition]").forEach((button) => {
@@ -1253,8 +1391,140 @@ async function loadAcquisitions() {
     document.querySelectorAll("[data-open-acquisition-job]").forEach((button) => {
       button.addEventListener("click", () => void openJob(button.dataset.openAcquisitionJob));
     });
+    document.querySelectorAll("[data-acquisition-check]").forEach((checkbox) => {
+      checkbox.addEventListener("click", (event) => {
+        if (checkbox.disabled) return;
+        const orderedIds = state.acquisitionRecords.filter(isAcquisitionDeletable).map((session) => session.id);
+        state.acquisitionSelectionAnchor = applyRangeSelection(
+          state.acquisitionSelection,
+          orderedIds,
+          checkbox.dataset.acquisitionCheck,
+          event.shiftKey,
+          state.acquisitionSelectionAnchor,
+          checkbox.checked,
+        );
+        syncAcquisitionSelection();
+      });
+    });
+    document.querySelectorAll("[data-delete-acquisition]").forEach((button) => {
+      button.addEventListener("click", () => requestRecordDeletion("acquisitions", [button.dataset.deleteAcquisition]));
+    });
+    syncAcquisitionSelection();
   } catch (error) {
-    $("acquisitionBody").innerHTML = `<tr><td colspan="8" class="empty">${escapeHtml(error.message)}</td></tr>`;
+    $("acquisitionBody").innerHTML = `<tr><td colspan="10" class="empty">${escapeHtml(error.message)}</td></tr>`;
+    syncAcquisitionSelection();
+  }
+}
+
+function showRecordFeedback(kind, message, error = false) {
+  const element = kind === "jobs" ? $("uploadMessage") : $("acquisitionMessage");
+  element.textContent = message;
+  element.classList.toggle("error", error);
+  element.classList.remove("hidden");
+}
+
+function requestRecordDeletion(kind, ids) {
+  const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
+  const records = kind === "jobs"
+    ? state.jobs.filter((job) => uniqueIds.includes(job.id))
+    : state.acquisitionRecords.filter((session) => uniqueIds.includes(session.id));
+  const deletable = records.filter(kind === "jobs" ? isJobDeletable : isAcquisitionDeletable);
+  if (!deletable.length) {
+    showRecordFeedback(kind, "当前记录仍在处理中或已经不存在，暂时不能删除。", true);
+    return;
+  }
+
+  state.deleteRequest = { kind, ids: deletable.map((record) => record.id) };
+  const noun = kind === "jobs" ? "任务" : "采集记录";
+  $("deleteSummary").textContent = `将永久删除 ${deletable.length} 条${noun}`;
+  $("deleteExplanation").textContent = kind === "jobs"
+    ? "数据库记录、上传原始文件、处理报告和特征文件会一起清理。"
+    : "数据库清单、CSV、EDF 和元数据文件会一起清理。已生成的分析任务不会自动删除。";
+  $("deletePreview").innerHTML = deletable.slice(0, 6).map((record, index) => {
+    const title = kind === "jobs" ? record.title : (record.csv_name || record.id);
+    const meta = kind === "jobs"
+      ? `${record.owner_name} · ${formatDateTime(record.created_at)}`
+      : `${record.subject_id || "—"} · ${record.profile_label || "—"} · ${formatDateTime(record.created_at)}`;
+    return `<div class="delete-preview-item">
+      <span>${String(index + 1).padStart(2, "0")}</span>
+      <div><strong>${escapeHtml(title)}</strong><small>${escapeHtml(meta)}</small></div>
+    </div>`;
+  }).join("") + (deletable.length > 6
+    ? `<p class="delete-more">另有 ${deletable.length - 6} 条记录将一并删除。</p>`
+    : "");
+  $("deleteMessage").textContent = "";
+  $("deleteMessage").classList.add("hidden");
+  $("confirmDeleteBtn").disabled = false;
+  $("confirmDeleteBtn").textContent = "确认删除";
+  $("deleteDialog").showModal();
+}
+
+function closeDeleteDialog(clearSelection = true) {
+  const request = state.deleteRequest;
+  state.deleteRequest = null;
+  if (clearSelection && request?.kind === "jobs") {
+    state.jobSelection.clear();
+    state.jobSelectionAnchor = null;
+    syncJobSelection();
+  } else if (clearSelection && request?.kind === "acquisitions") {
+    state.acquisitionSelection.clear();
+    state.acquisitionSelectionAnchor = null;
+    syncAcquisitionSelection();
+  }
+  if ($("deleteDialog").open) $("deleteDialog").close();
+}
+
+async function confirmRecordDeletion() {
+  const request = state.deleteRequest;
+  if (!request) return;
+  const button = $("confirmDeleteBtn");
+  button.disabled = true;
+  button.textContent = "正在删除…";
+  $("deleteMessage").classList.add("hidden");
+  try {
+    const data = await api(
+      request.kind === "jobs" ? "/api/jobs/bulk-delete" : "/api/acquisitions/bulk-delete",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: request.ids }),
+      },
+    );
+    const deleted = new Set(data.deleted || []);
+    const skipped = data.skipped || [];
+    closeDeleteDialog();
+
+    if (request.kind === "jobs") {
+      state.jobSelection.clear();
+      state.jobSelectionAnchor = null;
+      if (deleted.has(state.jobDialogId) && $("jobDialog").open) {
+        $("jobDialog").close();
+        state.jobDialogId = null;
+      }
+      await loadJobs();
+    } else {
+      state.acquisitionSelection.clear();
+      state.acquisitionSelectionAnchor = null;
+      await loadAcquisitions();
+    }
+
+    const warningText = data.warnings?.length ? ` 文件清理提示：${data.warnings.join("；")}` : "";
+    if (skipped.length) {
+      const firstReason = skipped[0]?.reason || "未知原因";
+      showRecordFeedback(
+        request.kind,
+        `已删除 ${deleted.size} 条，${skipped.length} 条未删除。${firstReason}${warningText}`,
+        true,
+      );
+    } else {
+      showRecordFeedback(request.kind, `已删除 ${deleted.size} 条记录，相关文件已清理。${warningText}`);
+    }
+  } catch (error) {
+    $("deleteMessage").textContent = `删除失败：${error.message}`;
+    $("deleteMessage").classList.remove("hidden");
+    $("deleteMessage").classList.add("error");
+    button.disabled = false;
+    button.textContent = "确认删除";
   }
 }
 
@@ -1622,6 +1892,52 @@ $("refreshBtn").addEventListener("click", loadJobs);
 $("closeDialog").addEventListener("click", () => $("jobDialog").close());
 $("jobDialog").addEventListener("click", (event) => {
   if (event.target === $("jobDialog")) $("jobDialog").close();
+});
+$("jobDialog").addEventListener("close", () => {
+  state.jobDialogId = null;
+});
+
+$("jobsSelectAll").addEventListener("change", () => {
+  const eligibleIds = state.jobs.filter(isJobDeletable).map((job) => job.id);
+  state.jobSelection.clear();
+  if ($("jobsSelectAll").checked) eligibleIds.forEach((id) => state.jobSelection.add(id));
+  state.jobSelectionAnchor = null;
+  syncJobSelection();
+});
+$("clearJobSelection").addEventListener("click", () => {
+  state.jobSelection.clear();
+  state.jobSelectionAnchor = null;
+  syncJobSelection();
+});
+$("deleteSelectedJobs").addEventListener("click", () => {
+  requestRecordDeletion("jobs", Array.from(state.jobSelection));
+});
+
+$("acquisitionsSelectAll").addEventListener("change", () => {
+  const eligibleIds = state.acquisitionRecords
+    .filter(isAcquisitionDeletable)
+    .map((session) => session.id);
+  state.acquisitionSelection.clear();
+  if ($("acquisitionsSelectAll").checked) {
+    eligibleIds.forEach((id) => state.acquisitionSelection.add(id));
+  }
+  state.acquisitionSelectionAnchor = null;
+  syncAcquisitionSelection();
+});
+$("clearAcquisitionSelection").addEventListener("click", () => {
+  state.acquisitionSelection.clear();
+  state.acquisitionSelectionAnchor = null;
+  syncAcquisitionSelection();
+});
+$("deleteSelectedAcquisitions").addEventListener("click", () => {
+  requestRecordDeletion("acquisitions", Array.from(state.acquisitionSelection));
+});
+
+$("closeDeleteDialog").addEventListener("click", closeDeleteDialog);
+$("cancelDeleteDialog").addEventListener("click", closeDeleteDialog);
+$("confirmDeleteBtn").addEventListener("click", () => void confirmRecordDeletion());
+$("deleteDialog").addEventListener("click", (event) => {
+  if (event.target === $("deleteDialog")) closeDeleteDialog();
 });
 
 async function boot() {

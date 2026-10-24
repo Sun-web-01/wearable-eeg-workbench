@@ -147,6 +147,8 @@ class TeamPlatformTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200, response.text)
         session = response.json()["session"]
         self.assertTrue(session["csv_name"].startswith("sub-s99_task-rest_acq-synthetic_"))
+        active_delete = self.client.delete(f"/api/acquisitions/{session['id']}")
+        self.assertEqual(active_delete.status_code, 409, active_delete.text)
         completed = self.wait_for_acquisition(session["id"])
         self.assertEqual(completed["status"], "completed", completed)
         self.assertTrue(completed["edf_name"].endswith(".edf"))
@@ -162,6 +164,14 @@ class TeamPlatformTests(unittest.TestCase):
         self.assertEqual(analyzed.status_code, 200, analyzed.text)
         job = self.wait_for_job(analyzed.json()["job"]["id"])
         self.assertEqual(job["status"], "completed", job)
+        deleted = self.client.delete(f"/api/acquisitions/{session['id']}")
+        self.assertEqual(deleted.status_code, 200, deleted.text)
+        self.assertEqual(deleted.json()["deleted"], [session["id"]])
+        self.assertEqual(self.client.get(f"/api/acquisitions/{session['id']}").status_code, 404)
+        self.assertEqual(
+            self.client.get(f"/api/acquisitions/{session['id']}/download/csv").status_code,
+            404,
+        )
 
     def test_team_upload_queue_and_shared_history(self) -> None:
         self.assertEqual(self.owner["role"], "admin")
@@ -218,6 +228,29 @@ class TeamPlatformTests(unittest.TestCase):
         self.assertIn("系统合成演示数据", html.text)
         self.assertIn("如何阅读这份报告", html.text)
         self.assertIn("features.csv 字段说明", html.text)
+
+    def test_job_single_and_bulk_delete(self) -> None:
+        job_ids = []
+        for title in ("待单条删除任务", "待批量删除任务 A", "待批量删除任务 B"):
+            response = self.client.post(
+                "/api/jobs/demo",
+                json={"title": title, "config": {"backend": "baseline"}},
+            )
+            self.assertEqual(response.status_code, 200, response.text)
+            job_id = response.json()["job"]["id"]
+            self.wait_for_job(job_id)
+            job_ids.append(job_id)
+
+        single = self.client.delete(f"/api/jobs/{job_ids[0]}")
+        self.assertEqual(single.status_code, 200, single.text)
+        self.assertEqual(single.json()["deleted"], [job_ids[0]])
+        self.assertEqual(self.client.get(f"/api/jobs/{job_ids[0]}").status_code, 404)
+
+        bulk = self.client.post("/api/jobs/bulk-delete", json={"ids": job_ids[1:]})
+        self.assertEqual(bulk.status_code, 200, bulk.text)
+        self.assertCountEqual(bulk.json()["deleted"], job_ids[1:])
+        remaining = {job["id"] for job in self.client.get("/api/jobs").json()["jobs"]}
+        self.assertFalse(remaining.intersection(job_ids))
 
 
 if __name__ == "__main__":

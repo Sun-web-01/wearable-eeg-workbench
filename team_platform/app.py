@@ -92,6 +92,10 @@ class DemoPayload(BaseModel):
     config: dict[str, Any] = Field(default_factory=dict)
 
 
+class BulkDeletePayload(BaseModel):
+    ids: list[str] = Field(min_length=1, max_length=100)
+
+
 def public_user(user: dict[str, Any]) -> dict[str, Any]:
     return {
         "id": user["id"],
@@ -167,6 +171,78 @@ def artifact_download_name(job: dict[str, Any], artifact: str) -> str:
     base = re.sub(r'[<>:"/\\|?*]', "_", base).strip(" ._")[:80] or "EEG任务"
     date = str(job.get("created_at") or "")[:10] or "未注明日期"
     return f"{base}_{date}_{str(job['id'])[:6]}_{labels[artifact]}"
+
+
+def remove_owned_data_directory(directory: Path) -> None:
+    data_root = settings.data_dir.resolve()
+    target = directory.resolve()
+    if target == data_root or data_root not in target.parents:
+        raise ValueError("拒绝删除数据目录之外的路径。")
+    if target.is_dir():
+        shutil.rmtree(target)
+    elif target.exists():
+        target.unlink()
+
+
+def delete_job_records(job_ids: list[str]) -> dict[str, Any]:
+    requested = list(dict.fromkeys(str(job_id) for job_id in job_ids if job_id))
+    before = {job_id: database.get_job(job_id) for job_id in requested}
+    deleted_rows = database.delete_jobs(requested)
+    deleted_ids = {str(job["id"]) for job in deleted_rows}
+    skipped = []
+    for job_id in requested:
+        if job_id in deleted_ids:
+            continue
+        job = before[job_id]
+        skipped.append({
+            "id": job_id,
+            "reason": "后台任务仍在排队或处理中，暂不能删除。" if job else "任务不存在或已被删除。",
+        })
+
+    warnings = []
+    for job in deleted_rows:
+        job_id = str(job["id"])
+        owned_directories = [settings.data_dir / "jobs" / job_id]
+        if job.get("mode") == "upload":
+            owned_directories.append(settings.data_dir / "uploads" / job_id)
+        for directory in owned_directories:
+            try:
+                remove_owned_data_directory(directory)
+            except (OSError, ValueError) as exc:
+                warnings.append(f"{job_id} 的文件清理未完成：{str(exc)[:160]}")
+
+    return {
+        "deleted": sorted(deleted_ids),
+        "skipped": skipped,
+        "warnings": warnings,
+    }
+
+
+def delete_acquisition_records(session_ids: list[str]) -> dict[str, Any]:
+    requested = list(dict.fromkeys(str(session_id) for session_id in session_ids if session_id))
+    deleted = []
+    skipped = []
+    for session_id in requested:
+        session = acquisitions.get_session(session_id)
+        if not session:
+            skipped.append({"id": session_id, "reason": "采集记录不存在或已被删除。"})
+            continue
+        linked_job_id = session.get("analysis_job_id")
+        linked_job = database.get_job(str(linked_job_id)) if linked_job_id else None
+        if linked_job and linked_job.get("status") in {"queued", "processing"}:
+            skipped.append({
+                "id": session_id,
+                "reason": "关联分析任务仍在处理中，请等待完成后再删除采集记录。",
+            })
+            continue
+        try:
+            acquisitions.delete_session(session_id)
+            deleted.append(session_id)
+        except KeyError:
+            skipped.append({"id": session_id, "reason": "采集记录不存在或已被删除。"})
+        except (OSError, ValueError) as exc:
+            skipped.append({"id": session_id, "reason": str(exc)})
+    return {"deleted": deleted, "skipped": skipped, "warnings": []}
 
 
 async def save_upload(upload: UploadFile, destination: Path, max_bytes: int) -> tuple[int, str]:
@@ -299,6 +375,27 @@ def list_jobs(user: Annotated[dict[str, Any], Depends(current_user)]) -> dict[st
     }
 
 
+@app.post("/api/jobs/bulk-delete")
+def bulk_delete_jobs(
+    payload: BulkDeletePayload,
+    _: Annotated[dict[str, Any], Depends(current_user)],
+) -> dict[str, Any]:
+    return delete_job_records(payload.ids)
+
+
+@app.delete("/api/jobs/{job_id}")
+def delete_job(
+    job_id: str,
+    _: Annotated[dict[str, Any], Depends(current_user)],
+) -> dict[str, Any]:
+    result = delete_job_records([job_id])
+    if not result["deleted"]:
+        skipped = result["skipped"][0] if result["skipped"] else {"reason": "任务不存在"}
+        code = status.HTTP_409_CONFLICT if "处理中" in skipped["reason"] else status.HTTP_404_NOT_FOUND
+        raise HTTPException(status_code=code, detail=skipped["reason"])
+    return result
+
+
 @app.get("/api/jobs/{job_id}")
 def get_job(job_id: str, _: Annotated[dict[str, Any], Depends(current_user)]) -> dict[str, Any]:
     job = database.get_job(job_id)
@@ -390,6 +487,25 @@ async def scan_devices(_: Annotated[dict[str, Any], Depends(current_user)]):
 @app.get("/api/acquisitions")
 def list_acquisitions(_: Annotated[dict[str, Any], Depends(current_user)]):
     return {"sessions": acquisitions.list_sessions()}
+
+
+@app.post("/api/acquisitions/bulk-delete")
+def bulk_delete_acquisitions(
+    payload: BulkDeletePayload,
+    _: Annotated[dict[str, Any], Depends(current_user)],
+) -> dict[str, Any]:
+    return delete_acquisition_records(payload.ids)
+
+
+@app.delete("/api/acquisitions/{session_id}")
+def delete_acquisition(session_id: str, _: Annotated[dict[str, Any], Depends(current_user)]):
+    result = delete_acquisition_records([session_id])
+    if not result["deleted"]:
+        skipped = result["skipped"][0] if result["skipped"] else {"reason": "采集任务不存在"}
+        reason = skipped["reason"]
+        code = status.HTTP_409_CONFLICT if "不能删除" in reason or "处理中" in reason else status.HTTP_404_NOT_FOUND
+        raise HTTPException(status_code=code, detail=reason)
+    return result
 
 
 @app.get("/api/acquisitions/{session_id}")

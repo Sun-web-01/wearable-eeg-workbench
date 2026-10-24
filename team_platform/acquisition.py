@@ -192,6 +192,24 @@ class AcquisitionManager:
             session = self._sessions.get(session_id)
             return dict(session) if session else None
 
+    def delete_session(self, session_id: str) -> dict[str, Any]:
+        with self._lock:
+            session = self._sessions.get(session_id)
+            if not session:
+                raise KeyError("采集任务不存在。")
+            if session.get("status") in {"starting", "connecting", "recording", "stopping"}:
+                raise ValueError("采集仍在进行，不能删除。")
+            root = self.root.resolve()
+            directory = (self.root / session_id).resolve()
+            if directory.parent != root:
+                raise ValueError("采集记录目录不安全，已拒绝删除。")
+            if directory.exists():
+                shutil.rmtree(directory)
+            removed = dict(self._sessions.pop(session_id))
+            self._stop_events.pop(session_id, None)
+            self._threads.pop(session_id, None)
+            return self.public_session(removed)
+
     def set_analysis_job(self, session_id: str, job_id: str) -> dict[str, Any]:
         return self._update(session_id, analysis_job_id=job_id)
 

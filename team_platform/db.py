@@ -214,6 +214,30 @@ class Database:
             ).fetchall()
             return [dict(row) for row in rows]
 
+    def delete_jobs(self, job_ids: list[str]) -> list[dict[str, Any]]:
+        unique_ids = list(dict.fromkeys(str(job_id) for job_id in job_ids if job_id))
+        if not unique_ids:
+            return []
+        placeholders = ",".join("?" for _ in unique_ids)
+        with self._lock, self.connect() as connection:
+            rows = connection.execute(
+                f"""
+                SELECT * FROM jobs
+                WHERE id IN ({placeholders})
+                  AND status NOT IN ('queued', 'processing')
+                """,
+                unique_ids,
+            ).fetchall()
+            deletable = [dict(row) for row in rows]
+            deletable_ids = [str(row["id"]) for row in deletable]
+            if deletable_ids:
+                delete_placeholders = ",".join("?" for _ in deletable_ids)
+                connection.execute(
+                    f"DELETE FROM jobs WHERE id IN ({delete_placeholders})",
+                    deletable_ids,
+                )
+            return deletable
+
     def jobs_to_resume(self) -> list[str]:
         with self._lock, self.connect() as connection:
             rows = connection.execute(

@@ -5,9 +5,48 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>NeuroTeam · 可穿戴脑电协作平台</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230d2438'/%3E%3Cpath d='M4 17h5l3-8 4 14 4-10 3 4h5' fill='none' stroke='%238dc5fa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="/assets/styles.css?v=20261024-3">
+  <link rel="stylesheet" href="/assets/styles.css?v=20261024-4">
 </head>
 <body>
+  <div class="boot-overlay" id="bootOverlay" aria-hidden="true">
+    <div class="boot-grid"></div>
+    <div class="boot-grain"></div>
+    <div class="boot-hud">
+      <span>NEUROTEAM / SIGNAL WORKSPACE</span>
+      <span>PRIVATE DATA PLANE</span>
+    </div>
+    <div class="boot-core">
+      <div class="boot-mark">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32"><path d="M3 17h5l3-8 5 15 4-11 3 4h6"/></svg>
+        </span>
+        <i class="boot-sweep"></i>
+      </div>
+      <div class="boot-title">
+        <small>NEUROTEAM</small>
+        <strong>可穿戴脑电数据工作台</strong>
+      </div>
+      <div class="boot-signal">
+        <span></span>
+        <svg viewBox="0 0 620 72" preserveAspectRatio="none" aria-hidden="true">
+          <path id="bootWavePath" d="M0 39h48l12-5 9 11 13-28 16 40 13-19 9 1h48l12-9 10 19 16-27 15 35 12-18h48l15-7 11 13 12-24 15 32 12-14h52l13-5 9 10 14-20 14 28 11-13h84"/>
+          <circle class="boot-signal-dot" cx="6" cy="39" r="3">
+            <animateMotion dur="1.8s" repeatCount="indefinite">
+              <mpath href="#bootWavePath"/>
+            </animateMotion>
+          </circle>
+        </svg>
+      </div>
+      <div class="boot-status" id="bootStatus">建立安全会话</div>
+    </div>
+    <div class="boot-bottom">
+      <span>EEG · IMU · QUALITY GATE</span>
+      <div class="boot-progress"><i></i></div>
+      <span>NEUROTEAM / 0.2</span>
+    </div>
+    <i class="boot-scanline"></i>
+  </div>
+
   <section class="auth-shell" id="authShell">
     <div class="auth-visual">
       <header class="auth-top">
@@ -158,6 +197,23 @@
           </div>
         </div>
 
+        <section class="pipeline-rail" aria-label="数据处理链路说明">
+          <div class="pipeline-lead">
+            <span class="eyebrow">可复现分析链路</span>
+            <strong>从原始信号到可交付报告</strong>
+            <p>每一段数据都保留来源、处理参数和质量结论，方便追溯与复核。</p>
+          </div>
+          <div class="pipeline-track">
+            <div class="pipe-node"><span>01</span><div><strong>接入</strong><small>CSV / EDF 文件</small></div></div>
+            <i class="pipe-link"></i>
+            <div class="pipe-node"><span>02</span><div><strong>校准</strong><small>采样率与时间轴</small></div></div>
+            <i class="pipe-link"></i>
+            <div class="pipe-node"><span>03</span><div><strong>清洗</strong><small>滤波与运动门控</small></div></div>
+            <i class="pipe-link"></i>
+            <div class="pipe-node"><span>04</span><div><strong>交付</strong><small>特征与质量报告</small></div></div>
+          </div>
+        </section>
+
         <div class="stat-grid">
           <article class="stat-card"><span>全部任务</span><strong id="statTotal">0</strong><small>团队共享记录</small></article>
           <article class="stat-card"><span>已完成</span><strong id="statCompleted">0</strong><small>报告可以复核</small></article>
@@ -187,6 +243,16 @@
                 </span>
                 <strong>选择或拖入 EEG/IMU 数据</strong>
                 <span id="dataFileName">CSV：时间序列表格；EDF：常规生理信号文件</span>
+              </div>
+              <div class="format-explainer">
+                <article>
+                  <span class="format-code">CSV</span>
+                  <div><strong>表格格式，便于检查和交流</strong><p>适合已经对齐的 EEG/IMU 时间序列。文本结构直观，可直接用 Excel 或 Pandas 查看，但设备元数据可能不完整。</p></div>
+                </article>
+                <article>
+                  <span class="format-code">EDF</span>
+                  <div><strong>生理信号格式，更适合正式研究</strong><p>保留通道、采样率和时间信息，也能携带睡眠分期标注。真实设备与公开数据集常使用这种格式。</p></div>
+                </article>
               </div>
               <details>
                 <summary>高级设置与参数说明 <span>可选</span></summary>
@@ -241,13 +307,17 @@
               <div><span>01</span><p><strong>读取与对齐</strong>识别 EEG、IMU、时间列，检查采样率和时间缺口。</p></div>
               <div><span>02</span><p><strong>清洗与门控</strong>滤波、重采样，并用 IMU 标记剧烈头动片段。</p></div>
               <div><span>03</span><p><strong>特征与报告</strong>提取频带特征，生成质量等级和可下载报告。</p></div>
+              <div><span>04</span><p><strong>复核与交付</strong>保留文件指纹和参数，让后续模型与论文实验能够复现。</p></div>
             </div>
             <div class="term-cards">
               <div><strong>EEG</strong><span>脑电信号</span><small>反映大脑电活动与节律</small></div>
               <div><strong>IMU</strong><span>运动信号</span><small>帮助识别头动和伪迹</small></div>
             </div>
             <div class="tech-signature" aria-label="分析技术">
-              <span>MNE</span><span>SciPy</span><span>FFT</span><span>IMU GATE</span>
+              <span title="脑电读取、滤波与分析的 Python 工具">MNE</span>
+              <span title="科学计算与信号处理工具">SciPy</span>
+              <span title="把波形分解为不同频率">FFT</span>
+              <span title="根据头部运动筛选可疑脑电片段">IMU GATE</span>
             </div>
             <div class="scope-box">
               <strong>信号链路说明</strong>
@@ -260,6 +330,12 @@
           <div class="panel-heading">
             <div><span class="eyebrow">共享记录</span><h2>团队任务</h2><p>所有成员共享查看，方便核对参数、结果和提交者。</p></div>
             <button class="ghost" id="refreshBtn">刷新任务</button>
+          </div>
+          <div class="quality-legend" aria-label="数据质量等级说明">
+            <span><b class="grade-a">A</b><em>信号稳定</em></span>
+            <span><b class="grade-b">B</b><em>可用，建议复核</em></span>
+            <span><b class="grade-c">C</b><em>质量偏低</em></span>
+            <span><b class="grade-d">D</b><em>需要重新处理</em></span>
           </div>
           <div class="table-wrap">
             <table>
@@ -279,6 +355,11 @@
           </div>
           <div class="intro-stat"><strong>P0</strong><span>优先验证</span></div>
         </section>
+        <div class="explain-strip">
+          <div><strong>P0</strong><span>优先验证的数据集，通常与当前设备和任务最接近。</span></div>
+          <div><strong>Hz</strong><span>每秒采样次数。不同设备不能直接混用，需要先统一采样率。</span></div>
+          <div><strong>许可</strong><span>说明数据能否下载、商用和再分发，提交训练前必须核对。</span></div>
+        </div>
         <div class="dataset-grid" id="datasetGrid"></div>
       </section>
 
@@ -306,6 +387,8 @@
             <div><dt>Epoch / 分析片段</dt><dd>从连续信号中截出的一段数据，例如 30 秒睡眠分期片段或 4 秒状态窗口。</dd></div>
             <div><dt>Research / 正式科研模式</dt><dd>使用 MNE、SciPy 等研究工具完成滤波和重采样，结果更适合正式实验。</dd></div>
             <div><dt>LOSO / 留一被试</dt><dd>每次拿一位受试者做测试，其余人训练，用来检查换人后模型是否仍然可靠。</dd></div>
+            <div><dt>MNE / SciPy</dt><dd>常用的 Python 信号分析工具。MNE 擅长读取生理数据，SciPy 提供滤波、重采样和科学计算。</dd></div>
+            <div><dt>FFT / 快速傅里叶变换</dt><dd>把一段随时间变化的脑电波形拆成不同频率，帮助观察 delta、theta、alpha 等节律。</dd></div>
           </dl>
         </section>
       </section>
@@ -320,6 +403,6 @@
     <div id="dialogContent" class="dialog-content"></div>
   </dialog>
 
-  <script src="/assets/app.js?v=20261024-3"></script>
+  <script src="/assets/app.js?v=20261024-4"></script>
 </body>
 </html>

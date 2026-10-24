@@ -9,6 +9,53 @@ const state = {
   autoSync: true,
 };
 
+function runBootSequence() {
+  const overlay = $("bootOverlay");
+  if (!overlay) return;
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let played = false;
+  try {
+    played = sessionStorage.getItem("neuroteam:booted") === "1";
+  } catch {
+    played = false;
+  }
+  if (played || reducedMotion) {
+    overlay.remove();
+    return;
+  }
+
+  document.body.classList.add("boot-active");
+  const statuses = [
+    "建立安全会话",
+    "校验 EEG / IMU 通道",
+    "加载信号质量规则",
+    "准备团队工作区",
+  ];
+  let statusIndex = 0;
+  let finished = false;
+  const statusTimer = setInterval(() => {
+    statusIndex = Math.min(statusIndex + 1, statuses.length - 1);
+    $("bootStatus").textContent = statuses[statusIndex];
+  }, 390);
+
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    clearInterval(statusTimer);
+    document.body.classList.remove("boot-active");
+    overlay.classList.add("done");
+    try {
+      sessionStorage.setItem("neuroteam:booted", "1");
+    } catch {
+      // Continue without persistence when storage is unavailable.
+    }
+    setTimeout(() => overlay.remove(), 780);
+  };
+
+  overlay.addEventListener("click", finish, { once: true });
+  setTimeout(finish, 1900);
+}
+
 async function api(path, options = {}) {
   const response = await fetch(path, { credentials: "same-origin", ...options });
   if (response.status === 401) {
@@ -495,4 +542,5 @@ async function boot() {
   }
 }
 
+runBootSequence();
 boot();

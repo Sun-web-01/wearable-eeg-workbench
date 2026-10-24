@@ -1884,6 +1884,16 @@ input.record-check:disabled { border-color: var(--line); background: var(--paper
   gap: 2px 11px;
   margin-top: 10px;
 }
+.custom-device-note {
+  grid-column: 1 / -1;
+  padding: 9px 11px;
+  border-left: 2px solid var(--blue);
+  border-radius: 0 7px 7px 0;
+  color: var(--muted);
+  background: linear-gradient(90deg, var(--blue-soft), transparent 85%);
+  font-size: 8.2px;
+  line-height: 1.6;
+}
 .device-profile-info {
   margin-top: 10px;
   padding: 11px 12px;

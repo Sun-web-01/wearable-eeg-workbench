@@ -115,6 +115,28 @@ class TeamPlatformTests(unittest.TestCase):
         )
         self.assertEqual(new_login.status_code, 200, new_login.text)
 
+    def test_username_accepts_any_language_and_symbols(self) -> None:
+        original_name = "🌙·Alice / 研究"
+        changed_name = "数据&实验 #01 ✨"
+        user = self.register(original_name)
+        self.assertEqual(user["username"], original_name)
+        updated = self.client.patch(
+            "/api/account",
+            json={
+                "current_password": "strong-password-123",
+                "new_username": changed_name,
+                "new_password": None,
+            },
+        )
+        self.assertEqual(updated.status_code, 200, updated.text)
+        self.assertEqual(updated.json()["user"]["username"], changed_name)
+        self.client.cookies.clear()
+        login = self.client.post(
+            "/api/auth/login",
+            json={"username": changed_name, "password": "strong-password-123"},
+        )
+        self.assertEqual(login.status_code, 200, login.text)
+
     def test_synthetic_device_acquisition_and_analysis(self) -> None:
         profiles = self.client.get("/api/devices/profiles")
         self.assertEqual(profiles.status_code, 200)
@@ -172,6 +194,32 @@ class TeamPlatformTests(unittest.TestCase):
             self.client.get(f"/api/acquisitions/{session['id']}/download/csv").status_code,
             404,
         )
+
+    def test_custom_brainflow_device_acquisition(self) -> None:
+        response = self.client.post(
+            "/api/acquisitions",
+            json={
+                "profile_id": "custom",
+                "custom_label": "Lab Custom EEG",
+                "custom_board_id": -1,
+                "custom_transport": "none",
+                "address": "",
+                "subject_id": "S96",
+                "task": "focused",
+                "duration_sec": 3,
+                "simulation_ack": False,
+            },
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        session = response.json()["session"]
+        self.assertEqual(session["profile_label"], "Lab Custom EEG")
+        self.assertEqual(session["custom_board_id"], -1)
+        self.assertTrue(session["csv_name"].startswith("sub-s96_task-focused_acq-lab-custom-eeg_"))
+        completed = self.wait_for_acquisition(session["id"])
+        self.assertEqual(completed["status"], "completed", completed)
+        self.assertTrue(completed["csv_name"].endswith(".csv"))
+        deleted = self.client.delete(f"/api/acquisitions/{session['id']}")
+        self.assertEqual(deleted.status_code, 200, deleted.text)
 
     def test_team_upload_queue_and_shared_history(self) -> None:
         self.assertEqual(self.owner["role"], "admin")

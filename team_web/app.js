@@ -259,12 +259,22 @@ function showAuth() {
   $("password").value = "";
 }
 
+function userInitial(name) {
+  const value = String(name || "").trim();
+  if (!value) return "?";
+  if (typeof Intl !== "undefined" && Intl.Segmenter) {
+    const segments = new Intl.Segmenter("zh-CN", { granularity: "grapheme" }).segment(value);
+    return segments[Symbol.iterator]().next().value?.segment?.toUpperCase() || "?";
+  }
+  return Array.from(value)[0]?.toUpperCase() || "?";
+}
+
 function showApp(user) {
   state.user = user;
   $("authShell").classList.add("hidden");
   $("appShell").classList.remove("hidden");
   $("currentUser").textContent = user.username;
-  $("avatar").textContent = user.username.slice(0, 1).toUpperCase();
+  $("avatar").textContent = userInitial(user.username);
   setView("jobs");
   loadJobs();
   applyAutoSync(state.autoSync);
@@ -273,7 +283,7 @@ function showApp(user) {
 function updateAccountHeader(user) {
   state.user = user;
   $("currentUser").textContent = user.username;
-  $("avatar").textContent = user.username.slice(0, 1).toUpperCase();
+  $("avatar").textContent = userInitial(user.username);
 }
 
 function showAccountMessage(message, error = false) {
@@ -1106,6 +1116,13 @@ const acquisitionTaskLabels = {
   other: "其他",
 };
 
+const CUSTOM_TRANSPORT_LABELS = {
+  serial: "串口 / USB Dongle",
+  bluetooth: "蓝牙",
+  ip: "网络 IP",
+  none: "无需地址",
+};
+
 function selectedDeviceProfile() {
   return state.deviceProfiles.find((profile) => profile.id === $("deviceProfile").value) || null;
 }
@@ -1114,19 +1131,40 @@ function updateAcquisitionFileName() {
   const profile = selectedDeviceProfile();
   const subject = ($("acquisitionSubject").value || "S01").replace(/[^A-Za-z0-9_-]/g, "").toLowerCase() || "s01";
   const task = $("acquisitionTask").value || "other";
+  const customSlug = ($("customDeviceName").value || "")
+    .trim()
+    .replace(/[^A-Za-z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .toLowerCase()
+    .slice(0, 32) || "custom";
+  const deviceSlug = profile?.id === "custom" ? customSlug : profile?.id;
   $("fileNamePreview").textContent = profile
-    ? `sub-${subject}_task-${task}_acq-${profile.id}_YYYYMMDD-HHMMSS.csv`
+    ? `sub-${subject}_task-${task}_acq-${deviceSlug}_YYYYMMDD-HHMMSS.csv`
     : "选择设备后生成标准文件名";
 }
 
 function updateStartAvailability() {
   const profile = selectedDeviceProfile();
   const needsSimulationAck = profile?.id === "synthetic" && !$("simulationConsent").checked;
-  $("startAcquisitionBtn").disabled = !profile || needsSimulationAck || Boolean(state.activeAcquisitionId);
+  const boardIdText = $("customBoardId").value.trim();
+  const customReady = profile?.id !== "custom" || (
+    Boolean($("customDeviceName").value.trim())
+    && boardIdText !== ""
+    && Number.isInteger(Number(boardIdText))
+    && Boolean($("customTransport").value)
+    && ($("customTransport").value === "none" || Boolean($("deviceAddress").value.trim()))
+  );
+  $("startAcquisitionBtn").disabled = !profile || needsSimulationAck || !customReady || Boolean(state.activeAcquisitionId);
 }
 
 function renderDeviceProfile() {
   const profile = selectedDeviceProfile();
+  const customFields = document.querySelectorAll(".custom-device-field");
+  const custom = profile?.id === "custom";
+  customFields.forEach((field) => field.classList.toggle("hidden", !custom));
+  $("customDeviceName").required = custom;
+  $("customBoardId").required = custom;
+  $("customTransport").required = custom;
   if (!profile) {
     $("deviceAddress").disabled = true;
     $("deviceAddress").placeholder = "请先选择设备类型";
@@ -1139,11 +1177,29 @@ function renderDeviceProfile() {
     return;
   }
   const addressInput = $("deviceAddress");
-  addressInput.disabled = !profile.address_field;
-  addressInput.placeholder = profile.address_field ? profile.address_label : "模拟设备无需填写";
-  $("deviceAddressHint").textContent = profile.address_field ? profile.address_label : "模拟设备无需填写";
   const simulated = profile.id === "synthetic";
-  $("deviceProfileInfo").innerHTML = `<b>${escapeHtml(profile.label)}</b>${simulated ? " · <strong>模拟数据，不是真实设备</strong>" : ""} · ${escapeHtml(profile.transport)} · ${profile.sample_rate_hz ?? "—"} Hz · EEG ${profile.eeg_channel_count} 通道 · IMU ${profile.imu_channel_count} 通道<br><span>${escapeHtml(profile.description)}</span>`;
+  if (custom) {
+    const transport = $("customTransport").value;
+    const placeholders = {
+      serial: "串口，例如 COM3",
+      bluetooth: "蓝牙 MAC 地址或设备序列号",
+      ip: "设备 IP，例如 192.168.1.20",
+      none: "无需地址",
+    };
+    addressInput.disabled = !transport || transport === "none";
+    addressInput.placeholder = placeholders[transport] || "请先选择连接方式";
+    $("deviceAddressHint").textContent = transport === "none"
+      ? "无需连接地址"
+      : (placeholders[transport] || "选择连接方式后填写");
+    const name = $("customDeviceName").value.trim() || "待填写设备名称";
+    const boardId = $("customBoardId").value.trim() || "待填写";
+    $("deviceProfileInfo").innerHTML = `<b>${escapeHtml(name)}</b> · <strong>自定义 BrainFlow 设备</strong> · Board ID ${escapeHtml(boardId)} · ${escapeHtml(transport ? CUSTOM_TRANSPORT_LABELS[transport] : "待选择连接方式")}<br><span>${escapeHtml(profile.description)}</span>`;
+  } else {
+    addressInput.disabled = !profile.address_field;
+    addressInput.placeholder = profile.address_field ? profile.address_label : "模拟设备无需填写";
+    $("deviceAddressHint").textContent = profile.address_field ? profile.address_label : "模拟设备无需填写";
+    $("deviceProfileInfo").innerHTML = `<b>${escapeHtml(profile.label)}</b>${simulated ? " · <strong>模拟数据，不是真实设备</strong>" : ""} · ${escapeHtml(profile.transport)} · ${profile.sample_rate_hz ?? "—"} Hz · EEG ${profile.eeg_channel_count} 通道 · IMU ${profile.imu_channel_count} 通道<br><span>${escapeHtml(profile.description)}</span>`;
+  }
   $("simulationConsentWrap").classList.toggle("hidden", !simulated);
   if (!simulated) $("simulationConsent").checked = false;
   updateAcquisitionFileName();
@@ -1168,9 +1224,11 @@ function renderScanResults(data) {
     button.addEventListener("click", () => {
       $("deviceAddress").value = button.dataset.deviceAddress;
       const label = button.dataset.deviceName.toLowerCase();
-      if (label.includes("muse s")) $("deviceProfile").value = "muse_s";
-      else if (label.includes("muse")) $("deviceProfile").value = "muse2";
-      else if (label.includes("cyton") || label.includes("openbci")) $("deviceProfile").value = "cyton";
+      if ($("deviceProfile").value !== "custom") {
+        if (label.includes("muse s")) $("deviceProfile").value = "muse_s";
+        else if (label.includes("muse")) $("deviceProfile").value = "muse2";
+        else if (label.includes("cyton") || label.includes("openbci")) $("deviceProfile").value = "cyton";
+      }
       refreshCustomSelect($("deviceProfile"));
       renderDeviceProfile();
     });
@@ -1184,7 +1242,8 @@ async function loadDeviceProfiles() {
     const select = $("deviceProfile");
     const previous = select.value;
     const orderedProfiles = [
-      ...state.deviceProfiles.filter((profile) => profile.id !== "synthetic"),
+      ...state.deviceProfiles.filter((profile) => !["custom", "synthetic"].includes(profile.id)),
+      ...state.deviceProfiles.filter((profile) => profile.id === "custom"),
       ...state.deviceProfiles.filter((profile) => profile.id === "synthetic"),
     ];
     select.innerHTML = '<option value="">请选择设备类型</option>' + orderedProfiles.map((profile) =>
@@ -1291,6 +1350,9 @@ async function startAcquisition(event) {
         task: $("acquisitionTask").value,
         duration_sec: Number($("acquisitionDuration").value),
         simulation_ack: profile.id === "synthetic" ? $("simulationConsent").checked : false,
+        custom_label: profile.id === "custom" ? $("customDeviceName").value.trim() : null,
+        custom_board_id: profile.id === "custom" ? Number($("customBoardId").value) : null,
+        custom_transport: profile.id === "custom" ? $("customTransport").value : null,
       }),
     });
     watchAcquisition(data.session);
@@ -1579,6 +1641,11 @@ $("trustDialog").addEventListener("click", (event) => {
 });
 
 $("deviceProfile").addEventListener("change", renderDeviceProfile);
+$("customTransport").addEventListener("change", renderDeviceProfile);
+["customDeviceName", "customBoardId"].forEach((id) => {
+  $(id).addEventListener("input", renderDeviceProfile);
+});
+$("deviceAddress").addEventListener("input", updateStartAvailability);
 $("simulationConsent").addEventListener("change", updateStartAvailability);
 $("acquisitionSubject").addEventListener("input", updateAcquisitionFileName);
 $("acquisitionTask").addEventListener("change", updateAcquisitionFileName);

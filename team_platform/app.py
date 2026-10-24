@@ -67,14 +67,14 @@ async def disable_frontend_cache(request: Request, call_next):
 
 
 class AuthPayload(BaseModel):
-    username: str = Field(min_length=3, max_length=32)
+    username: str = Field(min_length=1, max_length=32)
     password: str = Field(min_length=8, max_length=128)
     invite_code: str | None = None
 
 
 class AccountUpdatePayload(BaseModel):
     current_password: str = Field(min_length=1, max_length=128)
-    new_username: str = Field(min_length=3, max_length=32)
+    new_username: str = Field(min_length=1, max_length=32)
     new_password: str | None = Field(default=None, max_length=128)
 
 
@@ -85,6 +85,9 @@ class AcquisitionPayload(BaseModel):
     task: str = Field(default="rest", min_length=1, max_length=32)
     duration_sec: int = Field(default=30, ge=3, le=3600)
     simulation_ack: bool = False
+    custom_label: str | None = Field(default=None, max_length=64)
+    custom_board_id: int | None = Field(default=None, ge=-10000, le=10000)
+    custom_transport: str | None = Field(default=None, max_length=16)
 
 
 class DemoPayload(BaseModel):
@@ -530,6 +533,9 @@ def start_acquisition(
             duration_sec=payload.duration_sec,
             simulation_ack=payload.simulation_ack,
             user=user,
+            custom_label=payload.custom_label,
+            custom_board_id=payload.custom_board_id,
+            custom_transport=payload.custom_transport,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

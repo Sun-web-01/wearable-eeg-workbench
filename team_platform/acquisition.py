@@ -52,6 +52,22 @@ PROFILES = {
     },
 }
 
+CUSTOM_PROFILE = {
+    "id": "custom",
+    "label": "自定义 BrainFlow 设备",
+    "transport": "按连接方式",
+    "address_field": "custom",
+    "address_label": "设备连接地址",
+    "description": "直接填写 BrainFlow Board ID，并使用串口、蓝牙或网络 IP 连接任意兼容设备。",
+}
+
+CUSTOM_TRANSPORTS = {
+    "serial": ("串口 / USB Dongle", "serial_port"),
+    "bluetooth": ("蓝牙", "mac_address"),
+    "ip": ("网络 IP", "ip_address"),
+    "none": ("无需地址", None),
+}
+
 DEVICE_PATTERN = re.compile(
     r"(muse|openbci|cyton|ganglion|brainbit|notion|galea|unicorn|callibri|freeeeg|pieeg|emotiv)",
     re.IGNORECASE,
@@ -107,11 +123,25 @@ class AcquisitionManager:
 
     @staticmethod
     def profiles() -> list[dict[str, Any]]:
+        custom_profile = {
+            "id": CUSTOM_PROFILE["id"],
+            "label": CUSTOM_PROFILE["label"],
+            "transport": CUSTOM_PROFILE["transport"],
+            "address_field": CUSTOM_PROFILE["address_field"],
+            "address_label": CUSTOM_PROFILE["address_label"],
+            "description": CUSTOM_PROFILE["description"],
+            "board_id": None,
+            "sample_rate_hz": None,
+            "eeg_channel_count": None,
+            "imu_channel_count": None,
+            "eeg_names": [],
+            "custom": True,
+        }
         try:
             from brainflow.board_shim import BoardIds, BoardShim
         except ImportError:
-            return []
-        result = []
+            return [custom_profile]
+        result: list[dict[str, Any]] = []
         for profile_id, profile in PROFILES.items():
             board_id = getattr(BoardIds, profile["board_attr"])
             descriptor = BoardShim.get_board_descr(board_id)
@@ -134,6 +164,7 @@ class AcquisitionManager:
                 "imu_channel_count": len(accel_channels or []) + len(gyro_channels or []),
                 "eeg_names": eeg_names or [],
             })
+        result.append(custom_profile)
         return result
 
     @staticmethod
@@ -221,7 +252,7 @@ class AcquisitionManager:
             "imu_channel_count", "samples", "subject_id", "task", "profile_id",
             "profile_label", "transport", "address", "owner_name", "csv_name",
             "edf_name", "manifest_name", "csv_sha256", "error", "warnings",
-            "analysis_job_id", "simulated",
+            "analysis_job_id", "simulated", "custom_board_id", "custom_transport",
         }
         return {key: session.get(key) for key in fields}
 
@@ -235,14 +266,41 @@ class AcquisitionManager:
         duration_sec: int,
         simulation_ack: bool,
         user: dict[str, Any],
+        custom_label: str | None = None,
+        custom_board_id: int | None = None,
+        custom_transport: str | None = None,
     ) -> dict[str, Any]:
-        profile = PROFILES.get(profile_id)
-        if not profile:
-            raise ValueError("不支持的设备类型。")
-        if profile_id == "synthetic" and not simulation_ack:
-            raise ValueError("使用模拟设备前必须明确确认：生成数据不代表真实设备或真实受试者。")
-        if profile_id != "synthetic" and not address.strip():
-            raise ValueError(f"请输入{profile['address_label']}。")
+        is_custom = profile_id == "custom"
+        if is_custom:
+            label = (custom_label or "").strip()
+            if not label:
+                raise ValueError("请输入自定义设备名称。")
+            if custom_board_id is None:
+                raise ValueError("请输入 BrainFlow Board ID。")
+            transport = custom_transport or ""
+            if transport not in CUSTOM_TRANSPORTS:
+                raise ValueError("请选择自定义设备的连接方式。")
+            if transport != "none" and not address.strip():
+                raise ValueError("请输入设备连接地址。")
+            try:
+                from brainflow.board_shim import BoardShim
+
+                BoardShim.get_board_descr(int(custom_board_id))
+            except Exception as exc:
+                raise ValueError(f"无法识别 BrainFlow Board ID {custom_board_id}：{str(exc)[:160]}") from exc
+            profile = {
+                "label": label[:64],
+                "transport": CUSTOM_TRANSPORTS[transport][0],
+                "address_label": "设备连接地址",
+            }
+        else:
+            profile = PROFILES.get(profile_id)
+            if not profile:
+                raise ValueError("不支持的设备类型。")
+            if profile_id == "synthetic" and not simulation_ack:
+                raise ValueError("使用模拟设备前必须明确确认：生成数据不代表真实设备或真实受试者。")
+            if profile_id != "synthetic" and not address.strip():
+                raise ValueError(f"请输入{profile['address_label']}。")
         subject = _safe_slug(subject_id, "S01")
         task_slug = _safe_slug(task, "other")
         duration = max(3, min(3600, int(duration_sec)))
@@ -253,7 +311,8 @@ class AcquisitionManager:
             session_id = uuid.uuid4().hex[:12]
             now = datetime.now().astimezone()
             timestamp = now.strftime("%Y%m%d-%H%M%S")
-            base = f"sub-{subject}_task-{task_slug}_acq-{_safe_slug(profile_id, 'device')}_{timestamp}"
+            device_slug = _safe_slug(profile["label"], "custom") if is_custom else _safe_slug(profile_id, "device")
+            base = f"sub-{subject}_task-{task_slug}_acq-{device_slug}_{timestamp}"
             session = {
                 "id": session_id,
                 "status": "starting",
@@ -273,6 +332,8 @@ class AcquisitionManager:
                 "profile_label": profile["label"],
                 "transport": profile["transport"],
                 "simulated": profile_id == "synthetic",
+                "custom_board_id": int(custom_board_id) if is_custom and custom_board_id is not None else None,
+                "custom_transport": custom_transport if is_custom else None,
                 "address": address.strip(),
                 "owner_id": int(user["id"]),
                 "owner_name": user["username"],
@@ -320,13 +381,21 @@ class AcquisitionManager:
             session = self.get_session(session_id)
             if not session:
                 return
-            profile = PROFILES[session["profile_id"]]
             BoardShim.disable_board_logger()
             params = BrainFlowInputParams()
-            address_field = profile.get("address_field")
-            if address_field:
-                setattr(params, address_field, session["address"])
-            board_id = getattr(BoardIds, profile["board_attr"])
+            if session["profile_id"] == "custom":
+                board_id = int(session["custom_board_id"])
+                transport = session.get("custom_transport")
+                address_field = CUSTOM_TRANSPORTS.get(str(transport), (None, None))[1]
+                if address_field and session.get("address"):
+                    setattr(params, address_field, session["address"])
+                profile = {"label": session["profile_label"]}
+            else:
+                profile = PROFILES[session["profile_id"]]
+                address_field = profile.get("address_field")
+                if address_field:
+                    setattr(params, address_field, session["address"])
+                board_id = getattr(BoardIds, profile["board_attr"])
             descriptor = BoardShim.get_board_descr(board_id)
             self._update(
                 session_id,
@@ -459,6 +528,12 @@ class AcquisitionManager:
                 "transport": session["transport"],
                 "address": session["address"],
                 "board_id": descriptor.get("name"),
+                "brainflow_board_id": (
+                    session.get("custom_board_id")
+                    if session.get("profile_id") == "custom"
+                    else None
+                ),
+                "custom_transport": session.get("custom_transport"),
                 "sample_rate_hz": descriptor.get("sampling_rate"),
                 "eeg_channels": eeg_channels,
                 "accel_channels": accel_channels,

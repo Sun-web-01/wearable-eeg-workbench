@@ -4,18 +4,18 @@ import base64
 import hashlib
 import hmac
 import json
-import re
 import time
 from typing import Any
 
 
-USERNAME_RE = re.compile(r"^[A-Za-z0-9_\-\u4e00-\u9fff]{3,32}$")
-
-
 def validate_credentials(username: str, password: str) -> tuple[str, str]:
     username = username.strip()
-    if not USERNAME_RE.fullmatch(username):
-        raise ValueError("用户名需为 3—32 位中文、字母、数字、下划线或短横线。")
+    if not username:
+        raise ValueError("用户名不能为空。")
+    if len(username) > 32:
+        raise ValueError("用户名不能超过 32 位字符。")
+    if any(ord(char) < 32 or ord(char) == 127 for char in username):
+        raise ValueError("用户名不能包含换行或控制字符。")
     if len(password) < 8:
         raise ValueError("密码至少 8 位。")
     if len(password) > 128:

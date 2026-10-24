@@ -13,7 +13,7 @@
     }
   </script>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230d2438'/%3E%3Cpath d='M4 17h5l3-8 4 14 4-10 3 4h5' fill='none' stroke='%238dc5fa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="/assets/styles.css?v=20261025-14">
+  <link rel="stylesheet" href="/assets/styles.css?v=20261025-15">
 </head>
 <body>
   <div class="boot-overlay" id="bootOverlay" aria-hidden="true">
@@ -118,7 +118,7 @@
           <form id="authForm">
             <label class="field">
               <span class="field-label">用户名 <small>团队内用于区分提交者</small></span>
-              <input id="username" autocomplete="username" minlength="3" maxlength="32" placeholder="输入团队用户名" required>
+              <input id="username" autocomplete="username" minlength="1" maxlength="32" placeholder="输入团队用户名" required>
             </label>
             <label class="field">
               <span class="field-label">密码 <small id="passwordHint">请输入账户密码</small></span>
@@ -441,6 +441,27 @@
                     <option value="">请选择设备类型</option>
                   </select>
                 </label>
+                <label class="field custom-device-field hidden">
+                  <span class="field-label">自定义设备名称 <small>用于记录与文件名</small></span>
+                  <input id="customDeviceName" maxlength="64" autocomplete="off" placeholder="例如：实验室 32 通道 EEG">
+                </label>
+                <label class="field custom-device-field hidden">
+                  <span class="field-label">BrainFlow Board ID <small>填写设备的数字编号</small></span>
+                  <input id="customBoardId" type="number" step="1" min="-10000" max="10000" placeholder="例如：0">
+                </label>
+                <label class="field custom-device-field hidden">
+                  <span class="field-label">连接方式 <small>决定地址如何传给设备</small></span>
+                  <select id="customTransport" data-custom-select data-select-code="LINK">
+                    <option value="">请选择连接方式</option>
+                    <option value="serial">串口 / USB Dongle</option>
+                    <option value="bluetooth">蓝牙</option>
+                    <option value="ip">网络 IP</option>
+                    <option value="none">无需地址</option>
+                  </select>
+                </label>
+                <div class="custom-device-note custom-device-field hidden">
+                  自定义模式会直接把 Board ID 和连接参数交给 BrainFlow。设备实际支持哪些 EEG、IMU 通道和采样率，以 BrainFlow 读取到的硬件描述为准。
+                </div>
                 <label class="field">
                   <span class="field-label">设备地址 <small id="deviceAddressHint">模拟设备无需填写</small></span>
                   <input id="deviceAddress" autocomplete="off" placeholder="蓝牙地址或串口">
@@ -598,8 +619,8 @@
       </div>
       <div class="account-form-grid">
         <label class="field">
-          <span class="field-label">新用户名 <small>3—32 位，可使用中文、字母、数字、下划线或短横线</small></span>
-          <input id="accountUsername" minlength="3" maxlength="32" autocomplete="username" required>
+            <span class="field-label">新用户名 <small>1—32 位，可包含任何语言文字、空格和符号</small></span>
+            <input id="accountUsername" minlength="1" maxlength="32" autocomplete="username" required>
         </label>
         <label class="field">
           <span class="field-label">当前密码 <small>用于确认这是你本人操作</small></span>
@@ -659,6 +680,6 @@
     </div>
   </dialog>
 
-  <script src="/assets/app.js?v=20261025-14"></script>
+  <script src="/assets/app.js?v=20261025-15"></script>
 </body>
 </html>

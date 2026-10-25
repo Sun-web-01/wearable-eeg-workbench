@@ -92,6 +92,8 @@ time_s,eeg_fpz,eeg_pz,acc_x_g,acc_y_g,acc_z_g,state_label
 
 第二种方式只监听 Tailscale 私有地址。组员必须先加入同一个 Tailscale 网络，再打开负责人发来的私有网址；普通公网用户打不开，这是有意的安全设计。
 
+需要登录 Windows 后自动启动时，可使用 `scripts/start_team_autostart.ps1`。它会检查端口是否已占用，并等待 Tailscale 就绪后再启动平台。具体计划任务配置见[团队共享平台部署](docs/团队共享平台部署.md)。
+
 ### 3. 登录或加入团队
 
 - 第一个注册的账号自动成为管理员；

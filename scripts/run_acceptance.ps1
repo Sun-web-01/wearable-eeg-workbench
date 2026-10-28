@@ -15,7 +15,9 @@ if (Test-Path -LiteralPath $venvPython) {
 }
 
 & $python -m unittest discover -s tests -v
-& $python -m wearable_eeg demo --output reports/demo
+$stamp = Get-Date -Format "yyyyMMdd-HHmmss"
+$outputDirectory = Join-Path $root "reports\runs\acceptance-$stamp"
+& $python -m wearable_eeg demo --output $outputDirectory
 
-Write-Host "验收完成：reports/demo/report.html"
+Write-Host "验收完成：$outputDirectory\report.html"
 

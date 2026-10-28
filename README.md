@@ -89,7 +89,18 @@ time_s,eeg_fpz,eeg_pz,acc_x_g,acc_y_g,acc_z_g,state_label
 
 这条命令会创建 `.venv` 虚拟环境，并安装团队平台、EEG 处理和研究依赖。
 
-### 2. 启动团队平台
+### 2. Windows 一键验收
+
+不需要手敲 PowerShell 命令，也不需要修改系统执行策略：
+
+1. 打开项目中的 `scripts` 文件夹；
+2. 双击 `run_team_tests.cmd`，等待出现 `Tests completed successfully`；
+3. 双击 `run_acceptance.cmd`，它会运行测试并生成一份新的可复现演示报告；
+4. 报告保存在 `reports\runs\acceptance-日期-时间\report.html`。
+
+`.cmd` 启动器会自动使用 UTF-8、绕过当前进程的脚本执行限制，并在结束后暂停窗口，方便查看结果。
+
+### 3. 启动团队平台
 
 只允许当前电脑访问：
 
@@ -107,7 +118,7 @@ time_s,eeg_fpz,eeg_pz,acc_x_g,acc_y_g,acc_z_g,state_label
 
 需要登录 Windows 后自动启动时，可使用 `scripts/start_team_autostart.ps1`。它会检查端口是否已占用，并等待 Tailscale 就绪后再启动平台。具体计划任务配置见[团队共享平台部署](docs/团队共享平台部署.md)。
 
-### 3. 登录或加入团队
+### 4. 登录或加入团队
 
 - 第一个注册的账号自动成为管理员；
 - 后续成员注册时必须填写团队邀请码；
@@ -116,7 +127,7 @@ time_s,eeg_fpz,eeg_pz,acc_x_g,acc_y_g,acc_z_g,state_label
 - 登录后可在右上角“设置”中修改用户名和密码；
 - 修改用户名会同步更新历史任务里的提交者名称。
 
-### 4. 上传数据
+### 5. 上传数据
 
 1. 打开“任务工作台”；
 2. 填写容易辨认的任务名称；
@@ -125,7 +136,7 @@ time_s,eeg_fpz,eeg_pz,acc_x_g,acc_y_g,acc_z_g,state_label
 5. 点击“上传并开始分析”；
 6. 在“团队任务”中查看状态，完成后点“详情”。
 
-### 5. 没有硬件也可以先验收
+### 6. 没有硬件也可以先验收
 
 点击“运行演示任务”。平台会生成固定、可重复的合成数据，用来验证读取、滤波、质量和报告流程。演示数据不对应真实受试者，不能用于判断脑状态。
 
@@ -241,7 +252,7 @@ sub-s01_task-state_a_acq-muse2_20261028-183000_metadata.json
 .\.venv\Scripts\python.exe -m wearable_eeg process data/raw/example.csv --backend research --output reports/runs/example
 
 # 运行全部测试
-.\scripts\run_team_tests.ps1
+.\scripts\run_acceptance.cmd
 ```
 
 ## 项目目录

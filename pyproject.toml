@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "wearable-eeg-workbench"
 version = "0.1.0"
-description = "Team workbench for wearable EEG/IMU acquisition, quality checks, preprocessing, and reporting"
+description = "Two-state wearable EEG/IMU workbench for motion-robust, cross-subject research"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [

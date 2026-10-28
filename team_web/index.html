@@ -13,7 +13,7 @@
     }
   </script>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230d2438'/%3E%3Cpath d='M4 17h5l3-8 4 14 4-10 3 4h5' fill='none' stroke='%238dc5fa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="/assets/styles.css?v=20261025-17">
+  <link rel="stylesheet" href="/assets/styles.css?v=20261028-18">
 </head>
 <body>
   <div class="boot-overlay" id="bootOverlay" aria-hidden="true">
@@ -70,7 +70,7 @@
       <div class="auth-copy">
         <p class="eyebrow">EEG × IMU · 数据协作</p>
         <h1>让每一条脑电数据<br><em>可复核，也有上下文。</em></h1>
-        <p class="lead">从原始信号、预处理参数到质量报告，团队在同一处完成查看、提交和复核。先确认数据可靠，再进入脑状态识别。</p>
+        <p class="lead">围绕两类脑状态、EEG/IMU 融合、运动鲁棒性和跨个体泛化，团队在同一处完成采集、质量检查、特征交接和实验复核。</p>
 
         <div class="feature-row" aria-label="平台能力">
           <div><span>01</span><strong>EEG 脑电</strong><small>观察节律，提取状态特征</small></div>
@@ -133,7 +133,7 @@
           </form>
           <p class="auth-note">账户仅用于团队内部数据协作。请勿在公共群聊中转发邀请码或账户密码；登录后可在右上角修改账户。</p>
         </div>
-        <p class="auth-footer">用于科研数据协作与质量复核，不提供医疗诊断结论。</p>
+        <p class="auth-footer">用于项目内部技术验证、数据协作与结果复核。</p>
       </div>
     </div>
   </section>
@@ -186,8 +186,8 @@
       <header class="app-header">
         <div>
           <div class="breadcrumb">NEUROTEAM <span>/</span> <b id="viewLabel">任务工作台</b></div>
-          <h1 id="pageTitle">数据从这里进入模型</h1>
-          <p id="pageSubtitle">上传 EEG/IMU 数据，由服务端完成质量检查、预处理与可追溯报告。</p>
+          <h1 id="pageTitle">两类状态数据从这里进入流程</h1>
+          <p id="pageSubtitle">上传 EEG/IMU 数据，完成质量检查、预处理与可追溯报告，为单模态和融合建模提供统一输入。</p>
         </div>
         <div class="header-actions">
           <button class="theme-toggle" id="themeToggle" type="button" aria-pressed="true" title="切换明暗主题">
@@ -265,7 +265,7 @@
             <form id="uploadForm">
               <label class="field primary-field">
                 <span class="field-label"><span><b class="field-step">01</b>任务名称</span><small>用受试者、日期和数据来源命名，便于复核</small></span>
-                <input id="jobTitle" placeholder="例：Sleep-EDF SC4001 数据验收">
+                <input id="jobTitle" placeholder="例：两类状态 EEG/IMU 基线验收">
               </label>
               <div class="form-step-title"><span>02</span><strong>选择数据文件</strong><small>拖拽后自动识别文件类型</small></div>
               <div class="dropzone" id="teamDropzone" role="button" tabindex="0" aria-label="拖拽或选择 EEG 与 IMU 数据文件">
@@ -299,7 +299,7 @@
                 </article>
                 <article>
                   <span class="format-code">EDF</span>
-                  <div><strong>生理信号格式，更适合正式研究</strong><p>保留通道、采样率和时间信息，也能携带睡眠分期标注。真实设备与公开数据集常使用这种格式。</p></div>
+                  <div><strong>生理信号格式，更适合正式研究</strong><p>保留通道、采样率和时间信息，也能携带外部事件或状态标注。真实设备与公开数据集常使用这种格式。</p></div>
                 </article>
               </div>
               <details class="advanced-settings" id="advancedSettings">
@@ -307,14 +307,14 @@
                   <span class="advanced-icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h7M15 18h5"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="13" cy="18" r="2"/></svg>
                   </span>
-                  <span class="advanced-copy"><strong><b class="field-step">03</b>高级设置与参数说明</strong><small>采样率、滤波、陷波、运动阈值与睡眠标注</small></span>
+                  <span class="advanced-copy"><strong><b class="field-step">03</b>高级设置与参数说明</strong><small>采样率、滤波、陷波、运动阈值与外部标注</small></span>
                   <span class="advanced-state"><b>可选</b><i class="advanced-chevron"></i></span>
                 </summary>
                 <div class="advanced-panel">
                   <p class="details-intro">初次使用时保持默认即可。正式科研模式会使用 MNE 与 SciPy 完成滤波、重采样和时间对齐。</p>
                   <div class="optional-grid">
                   <label class="field">
-                    <span class="field-label">睡眠分期标注 <small>Hypnogram，需为 EDF</small></span>
+                    <span class="field-label">外部状态或事件标注 <small>可选，需为 EDF</small></span>
                     <input type="file" id="annotationFile" accept=".edf">
                   </label>
                   <label class="field">
@@ -471,14 +471,11 @@
                   <input id="acquisitionSubject" value="S01" maxlength="32" pattern="[A-Za-z0-9_-]+" required>
                 </label>
                 <label class="field">
-                  <span class="field-label">状态标签 <small>写入文件名和训练标签</small></span>
+                  <span class="field-label">两类状态标签 <small>具体类别待团队会议确定</small></span>
                   <select id="acquisitionTask" data-custom-select data-select-code="TASK">
-                    <option value="rest">静息基线</option>
-                    <option value="focused">专注</option>
-                    <option value="relaxed">放松</option>
-                    <option value="fatigued">疲劳</option>
-                    <option value="sleep">睡眠</option>
-                    <option value="other">其他</option>
+                    <option value="state_a">状态 A（待确定）</option>
+                    <option value="state_b">状态 B（待确定）</option>
+                    <option value="other">过渡或其他</option>
                   </select>
                 </label>
                 <label class="field">
@@ -554,13 +551,13 @@
         <section class="page-intro">
           <div>
             <span class="eyebrow">公开数据 · 来源可追溯</span>
-            <h2>找到适合当前实验的数据</h2>
-            <p>这里记录数据的任务、通道、采样率和许可。下载或申请前先确认使用范围，受限健康数据不要在团队外转发。</p>
+            <h2>核验两类状态的数据支撑</h2>
+            <p>这里记录候选数据的任务、通道、采样率和许可。团队将根据数据规模、标签质量和实验范式可复现性选择最终两类状态。</p>
           </div>
           <div class="intro-stat"><strong>P0</strong><span>优先验证</span></div>
         </section>
         <div class="explain-strip">
-          <div><strong>P0</strong><span>优先验证的数据集，通常与当前设备和任务最接近。</span></div>
+          <div><strong>P0</strong><span>优先核验的数据集；P0 不代表已经确定为项目的两类状态。</span></div>
           <div><strong>Hz</strong><span>每秒采样次数。不同设备不能直接混用，需要先统一采样率。</span></div>
           <div><strong>许可</strong><span>说明数据能否下载、商用和再分发，提交训练前必须核对。</span></div>
         </div>
@@ -572,7 +569,7 @@
           <div>
             <span class="eyebrow">实验规范 · 可复现优先</span>
             <h2>让每一步都可以被复核</h2>
-            <p>平台是协作入口，科研质量仍取决于数据来源、命名、标签、划分和过程记录。</p>
+            <p>当前方案聚焦两类状态、EEG/IMU 融合、运动鲁棒性和跨个体泛化，所有实验都要留下数据、参数和划分证据。</p>
           </div>
           <div class="intro-stat"><strong>6</strong><span>项基本约定</span></div>
         </section>
@@ -580,15 +577,15 @@
           <article class="panel"><span class="protocol-index">01</span><h3>保留原始数据</h3><p>原始文件只读保存，处理结果写入独立目录，并记录 SHA-256 指纹。</p></article>
           <article class="panel"><span class="protocol-index">02</span><h3>按受试者隔离</h3><p>同一个人、同一次 session 或重叠窗口，不能同时进入训练集和测试集。</p></article>
           <article class="panel"><span class="protocol-index">03</span><h3>参数可追溯</h3><p>正式实验使用 Research 模式，报告记录软件版本、滤波参数和数据时长。</p></article>
-          <article class="panel"><span class="protocol-index">04</span><h3>伪迹要人工复核</h3><p>平台负责发现和标记，ICA 等复杂去除步骤仍需成员检查，不能盲删。</p></article>
-          <article class="panel"><span class="protocol-index">05</span><h3>受限数据最小化</h3><p>DREAMT 等受限数据只在获批范围内使用，不通过平台或网盘对外转发。</p></article>
-          <article class="panel"><span class="protocol-index">06</span><h3>质量分不等于模型分</h3><p>数据质量 A 只表示信号较稳定，分类效果仍需真实标签和跨被试验证。</p></article>
+          <article class="panel"><span class="protocol-index">04</span><h3>两类状态先定稿</h3><p>先确认实验操作、标注依据、数据规模和标签质量，再冻结采集范式。</p></article>
+          <article class="panel"><span class="protocol-index">05</span><h3>运动条件可重复</h3><p>至少设置两种可重复条件，并记录动作、时长、佩戴方式和有效窗口。</p></article>
+          <article class="panel"><span class="protocol-index">06</span><h3>融合必须有对照</h3><p>在同一测试集比较 EEG 与 EEG+IMU，并报告准确率、宏平均 F1 和混淆矩阵。</p></article>
         </div>
         <section class="glossary panel">
           <div><span class="eyebrow">快速理解</span><h2>几个常见术语</h2></div>
           <dl>
             <div><dt>Artifact / 伪迹</dt><dd>不是脑活动本身，而是眨眼、咬牙、头动或电极松动造成的干扰。</dd></div>
-            <div><dt>Epoch / 分析片段</dt><dd>从连续信号中截出的一段数据，例如 30 秒睡眠分期片段或 4 秒状态窗口。</dd></div>
+            <div><dt>Epoch / 分析片段</dt><dd>从连续信号中截出的一段数据。项目建议使用 2—4 秒滑动窗口。</dd></div>
             <div><dt>Research / 正式科研模式</dt><dd>使用 MNE、SciPy 等研究工具完成滤波和重采样，结果更适合正式实验。</dd></div>
             <div><dt>LOSO / 留一被试</dt><dd>每次拿一位受试者做测试，其余人训练，用来检查换人后模型是否仍然可靠。</dd></div>
             <div><dt>MNE / SciPy</dt><dd>常用的 Python 信号分析工具。MNE 擅长读取生理数据，SciPy 提供滤波、重采样和科学计算。</dd></div>
@@ -680,6 +677,6 @@
     </div>
   </dialog>
 
-  <script src="/assets/app.js?v=20261025-17"></script>
+  <script src="/assets/app.js?v=20261028-18"></script>
 </body>
 </html>

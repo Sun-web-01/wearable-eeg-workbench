@@ -838,7 +838,7 @@ const datasetTaskLabels = {
 
 const datasetAccessLabels = {
   open_download: "开放下载",
-  restricted_health_data: "受限健康数据",
+  restricted_health_data: "受限数据",
   request_from_source: "向来源申请",
   request_from_lab: "向实验室申请",
   verify_from_primary_source: "需核对原始来源",
@@ -876,7 +876,7 @@ const datasetGuidance = {
 const datasetLicenseLabels = {
   "ODC-BY-1.0": "ODC-BY-1.0（开放数据署名许可）",
   "CC-BY-4.0": "CC BY 4.0（署名许可）",
-  "PhysioNet Restricted Health Data License 1.5.0": "PhysioNet 受限健康数据许可 1.5.0",
+  "PhysioNet Restricted Health Data License 1.5.0": "PhysioNet 受限数据许可 1.5.0",
   verify_before_use: "使用前核对许可",
 };
 
@@ -1108,6 +1108,8 @@ async function loadTrustView() {
 }
 
 const acquisitionTaskLabels = {
+  state_a: "状态 A（待确定）",
+  state_b: "状态 B（待确定）",
   rest: "静息基线",
   focused: "专注",
   relaxed: "放松",
@@ -1604,10 +1606,10 @@ function setView(view) {
   });
   $(`${view}View`).classList.remove("hidden");
   const labels = {
-    jobs: ["任务工作台", "数据从这里进入模型", "上传 EEG/IMU 数据，由服务端完成质量检查、预处理与可追溯报告。"],
+    jobs: ["任务工作台", "两类状态数据从这里进入流程", "上传 EEG/IMU 数据，完成质量检查、预处理与可追溯报告，为单模态和融合建模提供统一输入。"],
     devices: ["设备采集", "连接设备并采集原始数据", "通过 BrainFlow 连接 EEG/IMU 设备，按标准命名保存并提交分析。"],
-    datasets: ["数据资源", "公开数据集", "核对来源、许可和访问权限，再选择适合当前实验的数据。"],
-    protocol: ["团队规范", "数据与实验约定", "让数据来源、处理参数和被试划分都可以被团队复核。"],
+    datasets: ["数据资源", "两类状态候选数据", "核对来源、许可、样本规模、标签质量和 EEG/IMU 可用性。"],
+    protocol: ["团队规范", "双状态与跨个体实验约定", "让两类状态、运动条件、数据划分和处理参数都可以被复核。"],
   };
   $("viewLabel").textContent = labels[view][0];
   $("pageTitle").textContent = labels[view][1];

@@ -9,13 +9,13 @@
 <body>
   <header class="topbar">
     <div class="brand">
-      <div class="brand-mark">A</div>
+      <div class="brand-mark">N</div>
       <div>
         <h1>EEG/IMU Data Lab</h1>
         <p>可穿戴脑电数据验收、预处理与质量评估平台</p>
       </div>
     </div>
-    <div class="scope">Member A · Baseline + Research</div>
+    <div class="scope">Two-state EEG/IMU · Baseline + Research</div>
   </header>
 
   <main>
@@ -23,7 +23,7 @@
       <div>
         <span class="eyebrow">DATA QUALITY WORKBENCH</span>
         <h2>先把数据做可信，再让模型做判断。</h2>
-        <p>上传 CSV，自动完成通道识别、滤波、重采样、时间轴检查、IMU 运动伪迹筛查、4 秒窗口特征提取和报告导出。数据仅在本机处理。</p>
+        <p>上传 CSV，完成通道识别、时间轴检查、滤波、重采样、IMU 运动伪迹筛查和窗口特征提取。平台用于两类状态与多模态融合实验前的数据验收。</p>
       </div>
       <div class="hero-steps">
         <span>01 数据验收</span><span>02 预处理</span><span>03 质量门控</span><span>04 特征交接</span>
@@ -67,12 +67,12 @@
 
       <aside class="panel guide">
         <h3>当前平台边界</h3>
-        <p>这是成员 A 的离线数据工作台，适合数据验收、预处理联调和实验留痕，不是最终团队 Web 产品。</p>
+        <p>这是项目内部离线数据工作台，适合数据验收、预处理联调和实验留痕，不是最终实时识别产品。</p>
         <dl>
           <dt>现在能做</dt><dd>CSV 接入、质量评分、运动门控、特征导出</dd>
           <dt>正式实验</dt><dd>切换抗混叠重采样与零相位 FIR；ICA 需人工核查</dd>
           <dt>下一步</dt><dd>BrainFlow + LSL 接实时 EEG/IMU 流</dd>
-          <dt>交接口</dt><dd>把 JSON、features.csv 和 processed.csv 交给成员 B/C/D</dd>
+          <dt>交接口</dt><dd>把 JSON、features.csv 和 processed.csv 交给算法、后端和前端联调</dd>
         </dl>
       </aside>
     </section>
@@ -98,7 +98,7 @@
       </article>
 
       <article class="panel">
-        <div class="panel-heading"><h3>通道验收表</h3><span>分数用于相对比较，不是临床结论</span></div>
+        <div class="panel-heading"><h3>通道验收表</h3><span>分数用于相对比较，不是模型结论</span></div>
         <div class="table-wrap"><table><thead><tr><th>通道</th><th>评分</th><th>等级</th><th>峰峰值</th><th>高频占比</th><th>平直占比</th></tr></thead><tbody id="channelBody"></tbody></table></div>
       </article>
 

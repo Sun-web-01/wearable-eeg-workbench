@@ -1,10 +1,42 @@
 {
   "schema_version": "0.1",
-  "updated_at": "2026-10-24",
+  "updated_at": "2026-10-28",
   "source_document": "大创项目前期资料-可穿戴脑电脑状态识别-数据集与开源工具清单.docx",
+  "project_scope": {
+    "title": "面向运动干扰的可穿戴脑电多模态融合与跨个体脑状态识别研究",
+    "status": "two_state_selection_pending",
+    "fixed_components": [
+      "two_class_brain_or_cognitive_state",
+      "EEG_IMU_fusion",
+      "motion_robustness",
+      "cross_subject_generalization"
+    ],
+    "state_selection_criteria": [
+      "clear_experimental_operation",
+      "traceable_label_basis",
+      "public_dataset_support",
+      "adequate_subjects_and_samples",
+      "EEG_and_IMU_availability",
+      "usable_event_alignment",
+      "repeatable_motion_conditions",
+      "feasible_independent_subject_test"
+    ],
+    "candidate_reference_to_verify": {
+      "label": "Tang 2025 new-paradigm dataset with fine-grained immediate-recall annotation",
+      "status": "not_verified",
+      "required_checks": [
+        "exact title_and_citation",
+        "official_dataset_url",
+        "license_and_redistribution",
+        "subject_count_and_recording_duration",
+        "task_operation_and_label_definition",
+        "EEG_and_IMU_channels_and_rates"
+      ]
+    }
+  },
   "policy": {
     "raw_data_in_git": false,
-    "reason": "原始 EEG/IMU 数据体积大且许可、隐私要求不同；仓库只保存登记信息、下载脚本和哈希。",
+    "reason": "原始 EEG/IMU 数据体积大且许可与隐私要求不同；仓库只保存登记信息、下载脚本和哈希。",
     "download_directory": "data/raw/<dataset_id>/",
     "processed_directory": "data/processed/<dataset_id>/<subject_id>/<session_id>/"
   },

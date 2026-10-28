@@ -1,4 +1,4 @@
-param(
+﻿param(
     [int]$Port = 8000
 )
 
@@ -22,7 +22,7 @@ if (-not $env:EEG_INVITE_CODE) {
     } else {
         $bytes = New-Object byte[] 6
         [Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
-        $env:EEG_INVITE_CODE = [Convert]::ToHexString($bytes).ToLowerInvariant()
+        $env:EEG_INVITE_CODE = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
         Set-Content -LiteralPath $inviteFile -Value $env:EEG_INVITE_CODE -Encoding utf8
     }
 }
@@ -34,7 +34,7 @@ if (-not $env:EEG_COOKIE_SECRET) {
     } else {
         $bytes = New-Object byte[] 32
         [Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
-        $env:EEG_COOKIE_SECRET = [Convert]::ToHexString($bytes).ToLowerInvariant()
+    $env:EEG_COOKIE_SECRET = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
         Set-Content -LiteralPath $secretFile -Value $env:EEG_COOKIE_SECRET -Encoding utf8
     }
 }

@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$Record = "SC4001E0"
 )
 

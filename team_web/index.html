@@ -13,7 +13,7 @@
     }
   </script>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230d2438'/%3E%3Cpath d='M4 17h5l3-8 4 14 4-10 3 4h5' fill='none' stroke='%238dc5fa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="/assets/styles.css?v=20261028-18">
+  <link rel="stylesheet" href="/assets/styles.css?v=20261029-19">
 </head>
 <body>
   <div class="boot-overlay" id="bootOverlay" aria-hidden="true">
@@ -164,6 +164,10 @@
         <button class="nav-item" data-view="protocol">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l3 3v15H6z"/><path d="M9 11h6M9 15h6M9 7h3"/></svg>
           <span><b>团队规范</b><small>实验与数据约定</small></span>
+        </button>
+        <button class="nav-item" data-view="architecture">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="6" height="5" rx="1"/><rect x="15" y="4" width="6" height="5" rx="1"/><rect x="9" y="15" width="6" height="5" rx="1"/><path d="M6 9v3h12V9M12 12v3"/></svg>
+          <span><b>系统架构</b><small>前端与后端协作链路</small></span>
         </button>
       </nav>
 
@@ -593,6 +597,117 @@
           </dl>
         </section>
       </section>
+
+      <section class="view hidden" id="architectureView">
+        <section class="page-intro architecture-intro">
+          <div>
+            <span class="eyebrow">系统架构 · 前后端协作</span>
+            <h2>从浏览器界面到 EEG/IMU 处理服务</h2>
+            <p>前端负责交互与展示，后端负责身份验证、任务调度、设备采集、信号处理和数据持久化。两侧通过 HTTP API 交换结构化数据。</p>
+          </div>
+          <div class="intro-stat"><strong>2 LAYERS</strong><span>前端界面 + 后端服务</span></div>
+        </section>
+
+        <section class="architecture-layer-grid">
+          <article class="panel architecture-layer frontend-layer">
+            <div class="architecture-head">
+              <span class="architecture-number">01</span>
+              <div>
+                <span class="eyebrow">Frontend / 浏览器端</span>
+                <h2>交互与可视化</h2>
+              </div>
+              <span class="architecture-state online" id="frontendArchitectureStatus"><i></i>在线</span>
+            </div>
+            <p class="architecture-copy">用户看到的全部页面都运行在浏览器中，不在本地执行 EEG 算法，也不直接访问数据库和设备。</p>
+            <div class="architecture-tech">
+              <span>HTML</span><span>CSS</span><span>JavaScript</span><span>Fetch API</span>
+            </div>
+            <dl class="architecture-list">
+              <div><dt>任务界面</dt><dd>上传、筛选、查看状态与报告</dd></div>
+              <div><dt>设备界面</dt><dd>选择设备、填写参数、控制采集</dd></div>
+              <div><dt>结果展示</dt><dd>质量、通道、窗口与下载入口</dd></div>
+              <div><dt>会话状态</dt><dd>登录状态、主题与自动同步</dd></div>
+            </dl>
+          </article>
+
+          <div class="architecture-connector" aria-hidden="true">
+            <span>HTTP / JSON</span>
+            <i></i>
+            <small>上传数据与读取结果</small>
+          </div>
+
+          <article class="panel architecture-layer backend-layer">
+            <div class="architecture-head">
+              <span class="architecture-number">02</span>
+              <div>
+                <span class="eyebrow">Backend / 服务端</span>
+                <h2>处理与数据服务</h2>
+              </div>
+              <span class="architecture-state pending" id="backendArchitectureStatus"><i></i>检测中</span>
+            </div>
+            <p class="architecture-copy">后端运行在团队主机，负责认证、后台队列、文件管理、BrainFlow 设备连接以及 Pandas/MNE/SciPy 处理。</p>
+            <div class="architecture-tech">
+              <span>FastAPI</span><span>SQLite</span><span>Pandas</span><span>MNE / SciPy</span><span>BrainFlow</span>
+            </div>
+            <dl class="architecture-list">
+              <div><dt>账号与权限</dt><dd>Cookie 会话、邀请码和账户设置</dd></div>
+              <div><dt>任务与文件</dt><dd>上传、队列、报告、下载和删除</dd></div>
+              <div><dt>信号处理</dt><dd>检查、滤波、伪迹门控与特征提取</dd></div>
+              <div><dt>设备采集</dt><dd>硬件扫描、录制和标准化元数据</dd></div>
+            </dl>
+          </article>
+        </section>
+
+        <section class="panel architecture-flow-panel">
+          <div class="panel-title">
+            <div><span class="eyebrow">一次上传请求</span><h2>数据如何穿过前后端</h2><p>用户只操作浏览器，实际读取、计算和保存全部由后端完成。</p></div>
+            <span class="architecture-roundtrip" id="architectureRoundtrip">正在检测后端</span>
+          </div>
+          <div class="architecture-flow">
+            <div><b>01</b><strong>浏览器</strong><small>选择并预检文件</small></div>
+            <i></i>
+            <div><b>02</b><strong>FastAPI</strong><small>验证请求与会话</small></div>
+            <i></i>
+            <div><b>03</b><strong>任务队列</strong><small>接收处理任务</small></div>
+            <i></i>
+            <div><b>04</b><strong>处理引擎</strong><small>Pandas / MNE / SciPy</small></div>
+            <i></i>
+            <div><b>05</b><strong>存储与报告</strong><small>数据库、JSON、CSV、HTML</small></div>
+            <i></i>
+            <div><b>06</b><strong>前端更新</strong><small>轮询并展示结果</small></div>
+          </div>
+        </section>
+
+        <section class="architecture-info-grid">
+          <article class="panel">
+            <span class="eyebrow">接口边界</span>
+            <h3>前后端通过 API 解耦</h3>
+            <div class="api-groups">
+              <span><code>/api/auth/*</code> 登录注册</span>
+              <span><code>/api/jobs/*</code> 任务与报告</span>
+              <span><code>/api/acquisitions/*</code> 设备采集</span>
+              <span><code>/api/health</code> 服务状态</span>
+            </div>
+            <p>前端不直接读取 SQLite，不运行 Python，也不自行计算质量指标。</p>
+          </article>
+          <article class="panel">
+            <span class="eyebrow">运行状态</span>
+            <h3>当前服务信息</h3>
+            <dl class="architecture-runtime">
+              <div><dt>前端</dt><dd>浏览器页面已加载</dd></div>
+              <div><dt>后端版本</dt><dd id="architectureVersion">检测中</dd></div>
+              <div><dt>工作线程</dt><dd id="architectureWorkers">检测中</dd></div>
+              <div><dt>健康检查</dt><dd id="architectureLatency">检测中</dd></div>
+              <div><dt>最后更新</dt><dd id="architectureUpdated">—</dd></div>
+            </dl>
+          </article>
+        </section>
+
+        <div class="architecture-note">
+          <strong>边界说明</strong>
+          <p>当前仓库已完成逻辑分层，FastAPI 同时托管前端静态文件。若进一步物理拆分，可让 Nginx 托管前端、FastAPI 独立部署，并通过 CORS 与服务地址配置连接。</p>
+        </div>
+      </section>
     </main>
   </div>
 
@@ -677,6 +792,6 @@
     </div>
   </dialog>
 
-  <script src="/assets/app.js?v=20261028-18"></script>
+  <script src="/assets/app.js?v=20261029-19"></script>
 </body>
 </html>

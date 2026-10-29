@@ -1858,6 +1858,229 @@ input.record-check:disabled { border-color: var(--line); background: var(--paper
 .glossary dt { color: var(--ink); font-size: 11px; font-weight: 700; }
 .glossary dd { margin: 5px 0 0; color: var(--muted); font-size: 9.5px; line-height: 1.65; }
 
+/* Frontend/backend architecture */
+.architecture-intro { border-bottom: 1px solid var(--line); }
+.architecture-layer-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 88px minmax(0, 1fr);
+  align-items: stretch;
+  gap: 12px;
+}
+.architecture-layer {
+  position: relative;
+  overflow: hidden;
+  padding: 21px;
+}
+.architecture-layer::after {
+  content: "";
+  position: absolute;
+  right: -45px;
+  bottom: -45px;
+  width: 145px;
+  height: 145px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  opacity: .48;
+}
+.frontend-layer {
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--blue-soft) 72%, var(--paper)), var(--paper) 62%);
+}
+.backend-layer {
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--green-soft) 70%, var(--paper)), var(--paper) 62%);
+}
+.architecture-head {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+.architecture-head h2 { margin: 4px 0 0; font-size: 20px; }
+.architecture-number {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 3px 9px 3px 9px;
+  color: var(--blue);
+  background: var(--paper);
+  font: 800 8px ui-monospace, Consolas, monospace;
+}
+.backend-layer .architecture-number { color: var(--green); }
+.architecture-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--faint);
+  background: var(--paper);
+  font-size: 8px;
+  white-space: nowrap;
+}
+.architecture-state i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--faint);
+}
+.architecture-state.online { color: var(--green); background: var(--green-soft); }
+.architecture-state.online i { background: var(--green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 13%, transparent); }
+.architecture-state.pending { color: var(--amber); background: var(--amber-soft); }
+.architecture-state.pending i { background: var(--amber); animation: livePulse 1.5s ease-in-out infinite; }
+.architecture-state.offline { color: var(--red); background: var(--red-soft); }
+.architecture-state.offline i { background: var(--red); }
+.architecture-copy {
+  position: relative;
+  z-index: 1;
+  margin: 16px 0 12px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.7;
+}
+.architecture-tech { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: 5px; }
+.architecture-tech span {
+  padding: 4px 6px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--blue);
+  background: color-mix(in srgb, var(--paper) 82%, transparent);
+  font-size: 7.5px;
+  font-weight: 700;
+}
+.backend-layer .architecture-tech span { color: var(--green); }
+.architecture-list {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 1px;
+  margin: 15px 0 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--line);
+}
+.architecture-list div {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr);
+  gap: 10px;
+  padding: 9px 10px;
+  background: color-mix(in srgb, var(--paper) 94%, transparent);
+}
+.architecture-list dt { color: var(--ink); font-size: 8px; font-weight: 700; }
+.architecture-list dd { margin: 0; color: var(--muted); font-size: 8px; line-height: 1.5; }
+.architecture-connector {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 7px;
+  color: var(--faint);
+  text-align: center;
+}
+.architecture-connector span {
+  color: var(--blue);
+  font: 750 7.5px ui-monospace, Consolas, monospace;
+}
+.architecture-connector i {
+  position: relative;
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, var(--blue), var(--green));
+}
+.architecture-connector i::after {
+  content: "";
+  position: absolute;
+  top: -3px;
+  right: 0;
+  width: 7px;
+  height: 7px;
+  border-top: 1px solid var(--green);
+  border-right: 1px solid var(--green);
+  transform: rotate(45deg);
+}
+.architecture-connector small { max-width: 74px; font-size: 7.5px; line-height: 1.45; }
+.architecture-flow-panel { margin-top: 13px; }
+.architecture-roundtrip {
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--blue);
+  background: var(--blue-soft);
+  font: 700 8px ui-monospace, Consolas, monospace;
+  white-space: nowrap;
+}
+.architecture-flow {
+  display: grid;
+  grid-template-columns: repeat(11, auto);
+  align-items: center;
+  margin-top: 16px;
+}
+.architecture-flow > div {
+  min-width: 112px;
+  display: grid;
+  gap: 4px;
+  padding: 11px;
+  border: 1px solid var(--line);
+  border-radius: 3px 10px 3px 10px;
+  background: var(--paper-2);
+}
+.architecture-flow > div b { color: var(--blue); font: 800 7px ui-monospace, Consolas, monospace; }
+.architecture-flow > div strong { color: var(--ink); font-size: 9px; }
+.architecture-flow > div small { color: var(--faint); font-size: 7.5px; }
+.architecture-flow > i {
+  position: relative;
+  width: 22px;
+  height: 1px;
+  background: var(--line-strong);
+}
+.architecture-flow > i::after {
+  content: "";
+  position: absolute;
+  top: -2px;
+  right: 0;
+  width: 5px;
+  height: 5px;
+  border-top: 1px solid var(--line-strong);
+  border-right: 1px solid var(--line-strong);
+  transform: rotate(45deg);
+}
+.architecture-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 13px;
+  margin-top: 13px;
+}
+.architecture-info-grid h3 { margin: 7px 0 11px; font-size: 15px; }
+.architecture-info-grid p { margin: 11px 0 0; color: var(--muted); font-size: 9px; line-height: 1.65; }
+.api-groups { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.api-groups span {
+  padding: 7px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  background: var(--paper-2);
+  font-size: 7.5px;
+}
+.api-groups code { color: var(--blue); font-size: 7.5px; }
+.architecture-runtime { display: grid; gap: 1px; margin: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: var(--line); }
+.architecture-runtime div { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 9px; padding: 8px 9px; background: var(--paper-2); }
+.architecture-runtime dt { color: var(--faint); font-size: 8px; }
+.architecture-runtime dd { margin: 0; color: var(--ink); font-size: 8px; font-weight: 650; }
+.architecture-note {
+  margin-top: 13px;
+  padding: 12px 14px;
+  border-left: 2px solid var(--amber);
+  color: var(--muted);
+  background: linear-gradient(90deg, var(--amber-soft), transparent 80%);
+}
+.architecture-note strong { color: var(--ink); font-size: 9px; }
+.architecture-note p { margin: 5px 0 0; font-size: 8.5px; line-height: 1.65; }
+
 /* Device acquisition */
 .device-layout {
   display: grid;
@@ -2572,6 +2795,11 @@ dialog::backdrop { background: rgba(8, 20, 34, .58); backdrop-filter: blur(3px);
   .mini-wave svg { width: 130px; }
   .quality-tags { grid-column: 2; justify-content: flex-start; }
   .pipeline-rail { grid-template-columns: 1fr; }
+  .architecture-layer-grid { grid-template-columns: 1fr; }
+  .architecture-connector { min-height: 52px; grid-template-columns: auto 80px auto; }
+  .architecture-connector i { width: 80px; }
+  .architecture-flow { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .architecture-flow > i { display: none; }
 }
 
 @media (max-width: 960px) {
@@ -2663,6 +2891,11 @@ dialog::backdrop { background: rgba(8, 20, 34, .58); backdrop-filter: blur(3px);
   .trust-toolbar, .trust-grid { grid-template-columns: 1fr; }
   .account-form-grid { grid-template-columns: 1fr; }
   .account-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .architecture-head { grid-template-columns: 34px minmax(0, 1fr); }
+  .architecture-state { grid-column: 2; justify-self: start; }
+  .architecture-list div { grid-template-columns: 78px minmax(0, 1fr); }
+  .architecture-flow { grid-template-columns: 1fr 1fr; }
+  .architecture-info-grid, .api-groups { grid-template-columns: 1fr; }
   .detail-danger-zone { display: block; }
   .detail-danger-zone .danger-button { width: 100%; margin-top: 13px; }
   .delete-dialog-actions { display: grid; grid-template-columns: 1fr 1fr; }

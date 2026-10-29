@@ -930,6 +930,46 @@ async function loadDatasets() {
   }
 }
 
+function setArchitectureState(elementId, online, label) {
+  const element = $(elementId);
+  element.classList.remove("online", "offline", "pending");
+  element.classList.add(online === null ? "pending" : online ? "online" : "offline");
+  element.innerHTML = `<i></i>${escapeHtml(label)}`;
+}
+
+async function loadArchitectureStatus() {
+  if (!state.user) return;
+  setArchitectureState("frontendArchitectureStatus", true, "页面在线");
+  setArchitectureState("backendArchitectureStatus", null, "检测中");
+  $("architectureVersion").textContent = "检测中";
+  $("architectureWorkers").textContent = "检测中";
+  $("architectureLatency").textContent = "检测中";
+  $("architectureRoundtrip").textContent = "正在检测后端";
+
+  const started = performance.now();
+  try {
+    const response = await fetch("/api/health", {
+      credentials: "same-origin",
+      cache: "no-store",
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    const latency = Math.max(1, Math.round(performance.now() - started));
+    setArchitectureState("backendArchitectureStatus", true, "服务正常");
+    $("architectureVersion").textContent = `v${data.version || "未知"}`;
+    $("architectureWorkers").textContent = `${Number(data.workers || 0)} 个处理线程`;
+    $("architectureLatency").textContent = `${latency} ms`;
+    $("architectureRoundtrip").textContent = `API 响应 ${latency} ms`;
+  } catch (error) {
+    setArchitectureState("backendArchitectureStatus", false, "连接失败");
+    $("architectureVersion").textContent = "无法读取";
+    $("architectureWorkers").textContent = "无法读取";
+    $("architectureLatency").textContent = error.message;
+    $("architectureRoundtrip").textContent = "后端未响应";
+  }
+  $("architectureUpdated").textContent = formatDateTime(new Date().toISOString());
+}
+
 const trustModeLabels = {
   trace: ["可追溯", "来源记录"],
   review: ["可复核", "质量复核"],
@@ -1610,12 +1650,14 @@ function setView(view) {
     devices: ["设备采集", "连接设备并采集原始数据", "通过 BrainFlow 连接 EEG/IMU 设备，按标准命名保存并提交分析。"],
     datasets: ["数据资源", "两类状态候选数据", "核对来源、许可、样本规模、标签质量和 EEG/IMU 可用性。"],
     protocol: ["团队规范", "双状态与跨个体实验约定", "让两类状态、运动条件、数据划分和处理参数都可以被复核。"],
+    architecture: ["系统架构", "前端与后端如何协作", "浏览器负责交互和可视化，服务端负责认证、任务、设备、信号处理与数据存储。"],
   };
   $("viewLabel").textContent = labels[view][0];
   $("pageTitle").textContent = labels[view][1];
   $("pageSubtitle").textContent = labels[view][2];
   if (view === "datasets") loadDatasets();
   if (view === "devices") void loadDeviceView();
+  if (view === "architecture") void loadArchitectureStatus();
 }
 
 document.querySelectorAll("[data-auth-tab]").forEach((button) => {

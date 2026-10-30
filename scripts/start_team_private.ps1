@@ -7,6 +7,48 @@ $root = Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $root
 $env:PYTHONUTF8 = "1"
 
+function Test-TailscaleIPv4([string]$Address) {
+    $parts = $Address.Split(".")
+    return $parts.Count -eq 4 -and
+        $parts[0] -eq "100" -and
+        [int]$parts[1] -ge 64 -and
+        [int]$parts[1] -le 127
+}
+
+function Get-TailscaleIPv4([string]$TailscalePath) {
+    try {
+        $address = & $TailscalePath ip -4 2>$null | Select-Object -First 1
+        if ($address -and (Test-TailscaleIPv4 $address.Trim())) {
+            return $address.Trim()
+        }
+    } catch {
+        # Fall back to local interface discovery.
+    }
+
+    try {
+        $status = & $TailscalePath status --json 2>$null | ConvertFrom-Json
+        if ($status.BackendState -eq "Running") {
+            $address = $status.Self.TailscaleIPs |
+                Where-Object { Test-TailscaleIPv4 $_ } |
+                Select-Object -First 1
+            if ($address) {
+                return $address
+            }
+        }
+    } catch {
+        # The service pipe may be unavailable in a restricted user session.
+    }
+
+    $address = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+        Where-Object {
+            $_.InterfaceAlias -eq "Tailscale" -and
+            $_.AddressState -eq "Preferred" -and
+            (Test-TailscaleIPv4 $_.IPAddress)
+        } |
+        Select-Object -ExpandProperty IPAddress -First 1
+    return $address
+}
+
 $python = Join-Path $root ".venv\Scripts\python.exe"
 if (-not (Test-Path -LiteralPath $python)) {
     throw "团队平台环境不存在。先运行 .\scripts\setup.ps1 -Team。"
@@ -23,16 +65,30 @@ if (-not $tailscale) {
     $tailscalePath = $tailscale.Source
 }
 
-$status = & $tailscalePath status --json | ConvertFrom-Json
-if ($status.BackendState -ne "Running") {
-    throw "Tailscale 尚未登录或未运行。先执行 tailscale up 并完成登录。"
+$privateIp = Get-TailscaleIPv4 -TailscalePath $tailscalePath
+if (-not $privateIp) {
+    throw "Tailscale 尚未登录或未运行，也没有找到 100.64.0.0/10 地址。"
 }
 
-$privateIp = $status.Self.TailscaleIPs |
-    Where-Object { $_ -match "^\d+\.\d+\.\d+\.\d+$" } |
-    Select-Object -First 1
-if (-not $privateIp) {
-    throw "没有读取到 Tailscale IPv4 地址。"
+try {
+    $health = Invoke-WebRequest -UseBasicParsing -Uri "http://$privateIp`:$Port/api/health" -TimeoutSec 3
+    $healthBody = $health.Content | ConvertFrom-Json
+    if ($health.StatusCode -eq 200 -and $healthBody.status -eq "ok") {
+        Write-Host "NeuroTeam 已在 http://$privateIp`:$Port 正常运行。"
+        exit 0
+    }
+} catch {
+    # The platform is not responding yet.
+}
+
+$existing = @(Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue)
+$matchingListener = $existing | Where-Object { $_.LocalAddress -eq $privateIp }
+if ($matchingListener) {
+    throw "端口 $Port 已被占用，但健康检查失败。请等待守护进程清理后重试。"
+}
+if ($existing) {
+    $addresses = ($existing | Select-Object -ExpandProperty LocalAddress -Unique) -join ", "
+    throw "端口 $Port 被错误地址占用：$addresses。预期地址为 $privateIp。"
 }
 
 $dataRoot = Join-Path $root "team_data"

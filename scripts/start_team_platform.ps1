@@ -7,6 +7,12 @@ $root = Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $root
 $env:PYTHONUTF8 = "1"
 
+$existing = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
+if ($existing) {
+    Write-Host "NeuroTeam 已在端口 $Port 运行，无需重复启动。"
+    exit 0
+}
+
 $python = Join-Path $root ".venv\Scripts\python.exe"
 if (-not (Test-Path -LiteralPath $python)) {
     throw "团队平台环境不存在。先运行 .\scripts\setup.ps1 -Research，再安装 requirements-team.txt。"

@@ -275,6 +275,7 @@ function showApp(user) {
   $("appShell").classList.remove("hidden");
   $("currentUser").textContent = user.username;
   $("avatar").textContent = userInitial(user.username);
+  $("adminEntry").classList.toggle("hidden", user.role !== "admin");
   setView("jobs");
   loadJobs();
   applyAutoSync(state.autoSync);
@@ -284,6 +285,7 @@ function updateAccountHeader(user) {
   state.user = user;
   $("currentUser").textContent = user.username;
   $("avatar").textContent = userInitial(user.username);
+  $("adminEntry").classList.toggle("hidden", user.role !== "admin");
 }
 
 function showAccountMessage(message, error = false) {
@@ -1650,14 +1652,12 @@ function setView(view) {
     devices: ["设备采集", "连接设备并采集原始数据", "通过 BrainFlow 连接 EEG/IMU 设备，按标准命名保存并提交分析。"],
     datasets: ["数据资源", "两类状态候选数据", "核对来源、许可、样本规模、标签质量和 EEG/IMU 可用性。"],
     protocol: ["团队规范", "双状态与跨个体实验约定", "让两类状态、运动条件、数据划分和处理参数都可以被复核。"],
-    architecture: ["系统架构", "前端与后端如何协作", "浏览器负责交互和可视化，服务端负责认证、任务、设备、信号处理与数据存储。"],
   };
   $("viewLabel").textContent = labels[view][0];
   $("pageTitle").textContent = labels[view][1];
   $("pageSubtitle").textContent = labels[view][2];
   if (view === "datasets") loadDatasets();
   if (view === "devices") void loadDeviceView();
-  if (view === "architecture") void loadArchitectureStatus();
 }
 
 document.querySelectorAll("[data-auth-tab]").forEach((button) => {

@@ -680,6 +680,7 @@ select[data-custom-select] {
 .secondary:hover { background: #ebf1f7; }
 .ghost { border: 1px solid var(--line); color: var(--muted); background: transparent; }
 .ghost:hover { border-color: #b9c8d8; color: var(--ink); background: #fff; }
+.admin-entry { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; white-space: nowrap; }
 .small { padding: 7px 10px; font-size: 10px; }
 .wide { width: 100%; margin-top: 20px; padding: 12px; }
 .auth-note {

@@ -5,6 +5,7 @@ import json
 import os
 import re
 import shutil
+import time
 import uuid
 from contextlib import asynccontextmanager
 from dataclasses import asdict
@@ -39,6 +40,9 @@ database = Database(settings.data_dir / "team.db")
 runner = JobRunner(database, workers=settings.workers)
 acquisitions = AcquisitionManager(settings.data_dir)
 WEB_ROOT = Path(__file__).resolve().parent.parent / "team_web"
+ADMIN_ROOT = Path(__file__).resolve().parent.parent / "team_admin"
+STARTED_AT = utc_now()
+STARTED_MONOTONIC = time.monotonic()
 
 
 @asynccontextmanager
@@ -60,7 +64,11 @@ app = FastAPI(
 @app.middleware("http")
 async def disable_frontend_cache(request: Request, call_next):
     response = await call_next(request)
-    if request.url.path == "/" or request.url.path.startswith("/assets/"):
+    if (
+        request.url.path in {"/", "/admin", "/admin/"}
+        or request.url.path.startswith("/assets/")
+        or request.url.path.startswith("/admin-assets/")
+    ):
         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
     return response
@@ -141,6 +149,12 @@ def current_user(request: Request) -> dict[str, Any]:
     return user
 
 
+def admin_user(user: Annotated[dict[str, Any], Depends(current_user)]) -> dict[str, Any]:
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="仅管理员可以访问后端管理页")
+    return user
+
+
 def set_session(response: JSONResponse, user: dict[str, Any]) -> None:
     token = create_session(user, settings.cookie_secret)
     response.set_cookie(
@@ -185,6 +199,22 @@ def remove_owned_data_directory(directory: Path) -> None:
         shutil.rmtree(target)
     elif target.exists():
         target.unlink()
+
+
+def directory_usage(directory: Path) -> dict[str, int]:
+    file_count = 0
+    total_bytes = 0
+    if not directory.exists():
+        return {"files": 0, "bytes": 0}
+    for path in directory.rglob("*"):
+        if not path.is_file() or path.is_symlink():
+            continue
+        try:
+            total_bytes += path.stat().st_size
+            file_count += 1
+        except OSError:
+            continue
+    return {"files": file_count, "bytes": total_bytes}
 
 
 def delete_job_records(job_ids: list[str]) -> dict[str, Any]:
@@ -361,6 +391,45 @@ def logout() -> JSONResponse:
 @app.get("/api/me")
 def me(user: Annotated[dict[str, Any], Depends(current_user)]) -> dict[str, Any]:
     return {"user": public_user(user)}
+
+
+@app.get("/api/admin/overview")
+def admin_overview(
+    _: Annotated[dict[str, Any], Depends(admin_user)],
+) -> dict[str, Any]:
+    jobs = database.list_jobs(limit=1000)
+    sessions = acquisitions.list_sessions(limit=1000)
+    users = database.list_users()
+    active_acquisition_statuses = {"starting", "connecting", "recording", "stopping"}
+    storage = directory_usage(settings.data_dir)
+
+    return {
+        "generated_at": utc_now(),
+        "service": {
+            "status": "ok",
+            "version": "0.2.0",
+            "workers": settings.workers,
+            "started_at": STARTED_AT,
+            "uptime_seconds": max(0, round(time.monotonic() - STARTED_MONOTONIC)),
+        },
+        "stats": {
+            "users": len(users),
+            "admins": sum(user["role"] == "admin" for user in users),
+            "jobs": len(jobs),
+            "jobs_completed": sum(job["status"] == "completed" for job in jobs),
+            "jobs_processing": sum(job["status"] in {"queued", "processing"} for job in jobs),
+            "jobs_failed": sum(job["status"] == "failed" for job in jobs),
+            "acquisitions": len(sessions),
+            "acquisitions_active": sum(
+                session.get("status") in active_acquisition_statuses for session in sessions
+            ),
+            "storage_files": storage["files"],
+            "storage_bytes": storage["bytes"],
+        },
+        "users": users,
+        "recent_jobs": [public_job(job) for job in jobs[:8]],
+        "recent_acquisitions": sessions[:8],
+    }
 
 
 @app.get("/api/jobs")
@@ -691,7 +760,20 @@ def index():
     return FileResponse(WEB_ROOT / "index.html")
 
 
+@app.get("/index")
+@app.get("/index.html", include_in_schema=False)
+def legacy_index() -> RedirectResponse:
+    return RedirectResponse("/", status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+
+
+@app.get("/admin")
+@app.get("/admin/")
+def admin_index():
+    return FileResponse(ADMIN_ROOT / "index.html")
+
+
 app.mount("/assets", StaticFiles(directory=WEB_ROOT), name="assets")
+app.mount("/admin-assets", StaticFiles(directory=ADMIN_ROOT), name="admin-assets")
 
 
 def run() -> None:

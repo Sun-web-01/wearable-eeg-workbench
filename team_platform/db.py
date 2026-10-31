@@ -125,6 +125,24 @@ class Database:
             row = connection.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
             return dict(row) if row else None
 
+    def list_users(self) -> list[dict[str, Any]]:
+        with self.connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT
+                    u.id,
+                    u.username,
+                    u.role,
+                    u.created_at,
+                    COUNT(j.id) AS job_count
+                FROM users AS u
+                LEFT JOIN jobs AS j ON j.owner_id = u.id
+                GROUP BY u.id, u.username, u.role, u.created_at
+                ORDER BY u.created_at ASC, u.id ASC
+                """
+            ).fetchall()
+            return [dict(row) for row in rows]
+
     def create_job(
         self,
         job_id: str,

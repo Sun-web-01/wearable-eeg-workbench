@@ -87,8 +87,31 @@ class TeamPlatformTests(unittest.TestCase):
         page = self.client.get("/")
         self.assertEqual(page.status_code, 200)
         self.assertIn("no-store", page.headers["cache-control"])
+        admin_page = self.client.get("/admin")
+        self.assertEqual(admin_page.status_code, 200)
+        self.assertIn("后端管理控制台", admin_page.text)
+        self.assertIn("no-store", admin_page.headers["cache-control"])
+        self.assertEqual(self.client.get("/admin-assets/styles.css").status_code, 200)
+        legacy = self.client.get("/index", follow_redirects=False)
+        self.assertEqual(legacy.status_code, 307)
+        self.assertEqual(legacy.headers["location"], "/")
         self.client.cookies.clear()
         self.assertEqual(self.client.get("/api/jobs").status_code, 401)
+
+    def test_admin_overview_requires_admin_role(self) -> None:
+        overview = self.client.get("/api/admin/overview")
+        self.assertEqual(overview.status_code, 200, overview.text)
+        data = overview.json()
+        self.assertEqual(data["service"]["status"], "ok")
+        self.assertGreaterEqual(data["stats"]["users"], 1)
+        self.assertGreaterEqual(data["stats"]["admins"], 1)
+        self.assertTrue(any(user["role"] == "admin" for user in data["users"]))
+        self.assertTrue(any("bytes" in key for key in data["stats"]))
+
+        denied_user = self.register("admin-denied-member")
+        self.assertEqual(denied_user["role"], "member")
+        denied = self.client.get("/api/admin/overview")
+        self.assertEqual(denied.status_code, 403, denied.text)
 
     def test_account_username_and_password_update(self) -> None:
         self.register("account-tester")
